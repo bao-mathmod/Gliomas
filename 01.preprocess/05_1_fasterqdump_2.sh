@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # --- Output directory for FASTQ files ---
-OUTPUT_PATH="/mnt/18T/chibao/gliomas/data/fastq/sra/PRJNA1241178"
+OUTPUT_PATH="/mnt/18T/chibao/gliomas/data/fastq/sra/PRJNA1011262"
 
 # --- Log directory ---
-LOG_DIR="/mnt/18T/chibao/gliomas/data/fastq/sra/logs"
+LOG_DIR="/mnt/18T/chibao/gliomas/data/fastq/sra/logs/PRJNA1011262"
 mkdir -p "$OUTPUT_PATH" "$LOG_DIR"
 
 LOG_FILE="$LOG_DIR/fastq_dump_progress.log"
@@ -19,17 +19,19 @@ echo "Script started at $(date)" | tee -a "$LOG_FILE"
 
 # --- Only this specific accession ---
 ACCESSIONS=(
-SRR32834845
-SRR32834846
-SRR32834847
-SRR32834848
-SRR32834849
-SRR32834850
-SRR32834851
-SRR32834852
-SRR32834853
-SRR32834854
-SRR32834855
+SRR25835550
+SRR25835551
+SRR25835552
+SRR25835553
+SRR25835554
+SRR25835555
+SRR25835556
+SRR25835557
+SRR25835558
+SRR25835559
+SRR25835560
+SRR25835561
+SRR25835562
 )
 
 TOTAL=${#ACCESSIONS[@]}

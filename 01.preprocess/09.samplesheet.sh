@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 
-# bash /mnt/12T/chibao/code/01.preprocess/09.samplesheet.sh \
-#   --root /mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell \
-#   --output /mnt/10T2/chibao/gliomas/data_cell/all_projects.csv \
+# bash /mnt/18T/chibao/gliomas/code/01.preprocess/09.samplesheet.sh \
+#   --root /mnt/18T/chibao/gliomas/data/fastq/official \
+#   --output /mnt/18T/chibao/gliomas/data/fastq/official/all_projects.csv \
 #   --sample-from samn \
-#    --projects "PRJNA869964 PRJNA887804 PRJNA887805 PRJNA995768 PRJNA1081384 PRJNA1126248 PRJNA1131103 PRJNA1212512 PRJNA683876" \
+#    --projects "PRJNA1098411 PRJNA1125010 PRJNA1134206 PRJNA1141154 PRJNA797449 PRJNA1213849 PRJNA968165" \
 #   --split-by-project false
-
 
 
 set -Eeuo pipefail
 
 # === CONFIG (defaults) ===
-ROOT="/mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell"
+ROOT="/mnt/18T/chibao/gliomas/data/fastq/official"
 OUTPUT=""                 # if empty & --split-by-project=false -> prints to stdout
 SAMPLE_FROM="samn"        # samn | prefix | dir
 SPLIT_BY_PROJECT="false"  # true -> write one CSV per PRJNA under ROOT
@@ -82,20 +81,19 @@ build_rows_for_project() {
   local prjdir="$ROOT/$prj"
   [[ -d "$prjdir" ]] || return 0
 
-  # Find every *_R1_*.fastq.gz and pair to R2
+  # Find every *_R1_001.fastq.gz and pair to its corresponding R2 file
   # Use -print0 for safety; then unique & sorted
-  emit_header
-  find "$prjdir" -type f -name "*_R1_*.fastq.gz" -print0 \
+  find "$prjdir" -type f -name "*_R1_001.fastq.gz" -print0 \
   | while IFS= read -r -d '' r1; do
-      r2="${r1/_R1_/_R2_}"
+      # More specific replacement to guarantee finding the R2 file
+      r2="${r1/_R1_001.fastq.gz/_R2_001.fastq.gz}"
       if [[ -f "$r2" ]]; then
         sample="$(derive_sample "$r1")"
         printf "%s,%s,%s\n" "$sample" "$r1" "$r2"
       else
         echo "[WARN] Missing R2 for: $r1" >&2
       fi
-    done \
-  | awk 'NR==1 || !seen[$0]++'  # de-dup rows, keep header once
+    done
 }
 
 # --- discover projects if not provided ---
@@ -111,30 +109,21 @@ if [[ "$SPLIT_BY_PROJECT" == "true" ]]; then
   for prj in "${PROJECTS[@]}"; do
     outfile="$outdir/${prj}.csv"
     echo "[INFO] Writing $outfile"
-    build_rows_for_project "$prj" > "$outfile"
+    {
+        emit_header
+        build_rows_for_project "$prj"
+    } | awk '!seen[$0]++' > "$outfile"
   done
 else
   # single big CSV (stdout or --output FILE)
+  {
+      emit_header
+      for prj in "${PROJECTS[@]}"; do
+        build_rows_for_project "$prj"
+      done
+  } | awk '!seen[$0]++' > "${OUTPUT:-/dev/stdout}"
+
   if [[ -n "$OUTPUT" ]]; then
-    tmp="$(mktemp)"
-    # Write header once
-    emit_header > "$tmp"
-    for prj in "${PROJECTS[@]}"; do
-      # append rows skipping header
-      build_rows_for_project "$prj" | awk 'NR>1'
-    done >> "$tmp"
-    # De-dup again, but keep header
-    {
-      head -n1 "$tmp"
-      tail -n +2 "$tmp" | awk '!seen[$0]++'
-    } > "$OUTPUT"
-    rm -f "$tmp"
-    echo "[INFO] Wrote $OUTPUT"
-  else
-    # print to stdout
-    emit_header
-    for prj in "${PROJECTS[@]}"; do
-      build_rows_for_project "$prj" | awk 'NR>1'
-    done | awk 'NR==1 || !seen[$0]++'
+      echo "[INFO] Wrote $OUTPUT"
   fi
 fi

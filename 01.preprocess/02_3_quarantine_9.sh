@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # Adjust only if your layout differs
-SPLIT_ID="split7"
+SPLIT_ID="split9"
 FASTQ_ROOT="/mnt/18T/chibao/gliomas/data/fastq/ena/${SPLIT_ID}"
 QUAR="$FASTQ_ROOT/_quarantine"
 
@@ -12,7 +12,7 @@ OFFICIAL_META_ROOT="/mnt/18T/chibao/gliomas/data/metadata/official"
 EXPECTED="$OFFICIAL_META_ROOT/${SPLIT_ID}/_expected_files.tsv"
 
 # Your downloader script (with process_one_file)
-SCRIPT="/mnt/18T/chibao/gliomas/code/01.preprocess/02_fastq_split7.sh"
+SCRIPT="/mnt/18T/chibao/gliomas/code/01.preprocess/02_fastq_split9.sh"
 
 # Sanity: EXPECTED must exist
 if [[ ! -s "$EXPECTED" ]]; then

@@ -497,7 +497,7 @@ build_coverage_reports(){
   done < "$OUTPUT_DIR/.missing.keys" >> "$MISSING_REPORT"
 
   # Summaries
-  awk -F'\t' 'NR>1{exp[$2]++} END{for(p in exp) print p,exp[p]}' OFS='\t' "$EXPECTED_INDEX" | sort > "$OUTPUT_DIR/.exp.counts"
+  awk -F'\t' -v OFS='\t' 'NR>1{expc[$2]++} END{for(p in expc) print p,expc[p]}' "$EXPECTED_INDEX" | sort > "$OUTPUT_DIR/.exp.counts"
   awk -F'\t' 'NR>1 && ($9=="success" || $9=="skipped_existing"){ok[$3]++} END{for(p in ok) print p,ok[p]}' OFS='\t' "$GLOBAL_SUMMARY" | sort > "$OUTPUT_DIR/.ok.counts"
   awk -F'\t' 'NR>1 && $9=="skipped_existing"{sk[$3]++} END{for(p in sk) print p,sk[p]}' OFS='\t' "$GLOBAL_SUMMARY" | sort > "$OUTPUT_DIR/.sk.counts"
   awk -F'\t' 'NR>1{mm[$1]++} END{for(p in mm) print p,mm[p]}' OFS='\t' "$MISSING_REPORT" | sort > "$OUTPUT_DIR/.miss.counts"

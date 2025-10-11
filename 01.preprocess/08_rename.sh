@@ -6,7 +6,7 @@ set -Eeuo pipefail
 # + From the output of directly fastq download
 
 # Default config (can be overridden by CLI flags)
-ROOT="/mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell/PRJNA1212512"
+ROOT="/mnt/18T/chibao/gliomas/data/fastq/official/PRJNA797449"
 DRY_RUN=false                 # set false to actually mv
 RENAME_SINGLE_RUN=true      # <-- NEW: rename even if a sample has only 1 SRR?
 GLOB_EXT="{fastq,fq}.gz"     # support *.fastq.gz and *.fq.gz

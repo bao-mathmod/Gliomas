@@ -5,8 +5,8 @@ IFS=$'\n\t'
 # ========================
 # Config (edit as needed)
 # ========================
-BASE_DIR="/mnt/18T/chibao/gliomas/data/metadata/official/split7"   # Step-1 output root
-OUTPUT_DIR="/mnt/18T/chibao/gliomas/data/fastq/ena/split7"         # where FASTQs are saved
+BASE_DIR="/mnt/18T/chibao/gliomas/data/metadata/official/split8"   # Step-1 output root
+OUTPUT_DIR="/mnt/18T/chibao/gliomas/data/fastq/ena/split8"         # where FASTQs are saved
 
 # Logs & reports (GLOBAL files accumulate across all splits)
 GLOBAL_SUMMARY="$OUTPUT_DIR/_download_summary.tsv"          # per-file event log (append-only)

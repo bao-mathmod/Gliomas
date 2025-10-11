@@ -11,13 +11,13 @@ set -Eeuo pipefail
 # Metadata columns (CSV or TSV): sample_accession, experiment_accession, run_accession
 
 # bash /mnt/12T/chibao/code/01.preprocess/07_move.sh \
-#     --project PRJNA683876 \
-#     --root-base "/mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell" \
+#     --project PRJNA1241125 \
+#     --root-base "/mnt/18T/chibao/gliomas/data/fastq/sra" \
 #     --metadata-root "/mnt/12T/chibao/data/official_data/metadata/official/split1" \
-#     --log "/mnt/12T/chibao/data/official_data/logs/reorg_PRJNA683876.log" \
+#     --log "/mnt/18T/chibao/gliomas/data/fastq/sra/logs/PRJNA1241125" \
 #     --dry-run true
 
-ROOT_BASE="/mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell/PRJNA...."
+ROOT_BASE="/mnt/18T/chibao/gliomas/data/fastq/sra"
 METADATA_ROOT="/mnt/12T/chibao/data/official_data/metadata/official/split..."
 DRY_RUN="true"
 LOG="./reorg_cellranger_move_only.log"

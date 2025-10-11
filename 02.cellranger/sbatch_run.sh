@@ -11,12 +11,13 @@
 
 nextflow run main.nf \
    -profile slurm,singularity \
-   --input /mnt/10T2/chibao/gliomas/data_cell/all_projects.csv \
+   --input /mnt/18T/chibao/gliomas/data/fastq/official/all_projects.csv \
    --cellranger_index /mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2024-A \
    --aligner cellranger \
-   --outdir /mnt/18T/chibao/gliomas/data/output_cell \
+   --outdir /mnt/18T/chibao/gliomas/data/output_cell/nextflow \
    --skip_fastqc \
-   2>&1 | tee /mnt/18T/chibao/gliomas/data/output_cell/nextflow_run.log
+   --skip_cellbender \
+   2>&1 | tee /mnt/18T/chibao/gliomas/data/output_cell/nextflow/nextflow_run.log
 
 
 nextflow run main.nf \
