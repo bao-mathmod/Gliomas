@@ -265,15 +265,15 @@ IFS=$'\n\t'
 
 # ===== Required paths (edit to your real paths) =====
 MANIFEST="/mnt/12T/chibao/data/official_data/fastq_by_tech/bulk_or_plate_RNA/official_cell/_cr_samples.tsv"  # project_id  sample  fastq_dir
-TRANSCRIPTOME="/mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2020-A"
+TRANSCRIPTOME="/mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2024-A"
 OUT_ROOT="/mnt/12T/chibao/data/cellranger_data/cell_ranger_out"   # where per-sample ID folders will be created
 
 # ===== Options (simple) =====
 CREATE_BAM="true"          # set to "true" if you also want BAMs (v8+); CRAM is default
-INCLUDE_INTRONS=""          # set to "true" for snRNA/pre-mRNA, else leave empty
+INCLUDE_INTRONS="true"          # set to "true" for snRNA/pre-mRNA, else leave empty
 CHEMISTRY=""                # e.g. "SC3Pv3", "SC3Pv2", "SC5P-PE"; leave empty to auto-detect
 EXPECT_CELLS=""             # e.g. "6000"; leave empty to let cellranger estimate
-MAX_JOBS=3                 # 1 = sequential; increase (e.g., 2, 3) for light parallel
+MAX_JOBS=2                 # 1 = sequential; increase (e.g., 2, 3) for light parallel
 
 # (optional) local cores/mem; set to "" to omit
 LOCAL_CORES="16"

@@ -5,8 +5,9 @@ IFS=$'\n\t'
 # ========================
 # Config (edit as needed)
 # ========================
-BASE_DIR="/mnt/18T/chibao/gliomas/data/metadata/official/split8"   # Step-1 output root
-OUTPUT_DIR="/mnt/18T/chibao/gliomas/data/fastq/ena/split8"         # where FASTQs are saved
+BASE_DIR="/mnt/18T/chibao/gliomas/data/metadata/official/split13"   # Step-1 output root
+OUTPUT_DIR="/mnt/18T/chibao/gliomas/data/fastq/ena/split13"         # where FASTQs are saved
+MAX_PARALLEL_JOBS=10   
 
 # Logs & reports (GLOBAL files accumulate across all splits)
 GLOBAL_SUMMARY="$OUTPUT_DIR/_download_summary.tsv"          # per-file event log (append-only)
@@ -363,7 +364,11 @@ process_one_file(){
 process_project(){
   local split_id="$1" project_dir="$2"
   local project_id; project_id="$(basename "$project_dir")"
-  local FAIL_COUNT=0
+  
+  # --- FIX: Set up a temporary file to track failures from background jobs ---
+  local FAIL_FILE; FAIL_FILE="$(mktemp)"
+  # Ensure the temp file is cleaned up when the function exits
+  trap 'rm -f "$FAIL_FILE"' RETURN
 
   local ready="no"
   [[ -f "$project_dir/READY" ]] && ready="yes"
@@ -371,9 +376,9 @@ process_project(){
   # prefer latest.tsv; fallback to ${project_id}.tsv
   local used_tsv="" status="" msg=""
   if [[ -f "$project_dir/latest.tsv" ]]; then
-    used_tsv="$project_dir/latest.tsv"; status="used"; msg="OK"
+  used_tsv="${project_dir}latest.tsv"; status="used"; msg="OK"
   elif [[ -f "$project_dir/${project_id}.tsv" ]]; then
-    used_tsv="$project_dir/${project_id}.tsv"; status="used"; msg="OK (no symlink)"
+  used_tsv="${project_dir}${project_id}.tsv"; status="used"; msg="OK (no symlink)"
   else
     used_tsv=""; status="skipped"; msg="No metadata TSV"
   fi
@@ -410,6 +415,7 @@ process_project(){
   done
 
   # Iterate rows, populate EXPECTED_INDEX, then download
+  local job_count=0
   while IFS=$'\t' read -r -a fields; do
     [[ "${#fields[@]}" -eq 0 ]] && continue
 
@@ -439,10 +445,7 @@ process_project(){
       local url="$(normalize_url "$url_raw")"
       local fname="$(basename "$url")"
       local target="$rundir/$fname"
-
       append_expected_index_unique "$split_id" "$project_id" "$study" "$sample" "$exp" "$run" "$fname" "$url" "$md5_exp" "$target"
-
-      # If resume is ON and this key is already DONE, skip entirely
       if $RESUME; then
         local comp_key
         comp_key="$(key_of "$project_id" "$study" "$sample" "$exp" "$run" "$fname")"
@@ -452,13 +455,29 @@ process_project(){
         fi
       fi
 
-      if process_one_file "$split_id" "$project_id" "$study" "$sample" "$exp" "$run" "$url_raw" "$md5_exp"; then
-        :
-      else
-        FAIL_COUNT=$((FAIL_COUNT+1))
+      # --- FIX: Run in a subshell and record failures to the temp file ---
+      (
+        process_one_file "$split_id" "$project_id" "$study" "$sample" "$exp" "$run" "$url_raw" "$md5_exp" \
+        || echo "failed" >> "$FAIL_FILE"
+      ) &
+      
+      ((job_count++))
+      
+      if (( job_count >= MAX_PARALLEL_JOBS )); then
+        wait -n
+        ((job_count--))
       fi
     done
   done < <(tail -n +2 "$used_tsv")
+
+  # Wait for all remaining background jobs for this project to complete
+  wait
+
+  # --- FIX: Count failures from the temp file and clean up ---
+  local FAIL_COUNT
+  FAIL_COUNT=$(wc -l < "$FAIL_FILE")
+  rm -f "$FAIL_FILE" 
+  trap - RETURN
 
   log "Project $project_id finished with ${FAIL_COUNT} file failure(s) recorded for split_id=${split_id}."
 }

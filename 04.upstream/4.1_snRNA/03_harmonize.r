@@ -135,97 +135,81 @@ for (f in rds_files) {
 }
 
 
-###################
+########################## Approach 2 ###########################
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages({
-  library(Seurat); library(dplyr); library(stringr)
-  library(AnnotationDbi); library(org.Hs.eg.db); library(Matrix)
+  library(Seurat); library(Matrix); library(stringr)
+  library(AnnotationDbi); library(org.Hs.eg.db)
 })
 
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/snRNA_clean_2/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/snRNA_clean_2/rds_hgnc_test"; dir.create(out_dir, showWarnings=FALSE, recursive=TRUE)
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds_hgnc"
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Map Ensembl (±version) -> HGNC symbol, keep original if no map, ensure uniqueness
+# Map Ensembl(±version) -> HGNC symbol, with robust fallback
 map_to_symbol <- function(ids){
-  ids        <- as.character(ids)
   looks_ens  <- grepl("^ENSG\\d+", ids)
   clean_ids  <- sub("\\.\\d+$", "", ids)  # drop .version
-  symbols    <- ifelse(looks_ens,
-                       mapIds(org.Hs.eg.db, keys=clean_ids, keytype="ENSEMBL", column="SYMBOL"),
-                       ids)
-  # fallback to original if NA/empty
-  symbols[is.na(symbols) | symbols==""] <- ids[is.na(symbols) | symbols==""]
-  # trim whitespace and normalize weird unicode
-  symbols <- str_trim(symbols)
-  # Make syntactically valid but preserve case (avoid changing biology)
-  # Ensure uniqueness deterministically
-  symbols <- make.unique(symbols, sep = "_")
-  return(symbols)
+  syms <- ifelse(
+    looks_ens,
+    mapIds(org.Hs.eg.db,
+           keys     = clean_ids,
+           keytype  = "ENSEMBL",
+           column   = "SYMBOL",
+           multiVals= "first"),
+    ids
+  )
+  fallback <- ifelse(looks_ens, clean_ids, ids)
+  syms <- ifelse(is.na(syms) | syms == "", fallback, syms)
+  syms
 }
 
-safe_counts <- function(obj) {
-  # Prefer RNA counts explicitly; if missing, try SCT counts; else error
-  m <- tryCatch({
-    LayerData(obj, assay = "RNA", layer = "counts")
-  }, error = function(e) NULL)
-  if (is.null(m) || nrow(m) == 0) {
-    m <- tryCatch(LayerData(obj, assay = "SCT", layer = "counts"), error = function(e) NULL)
-  }
-  if (is.null(m) || nrow(m) == 0) stop("No counts layer found in RNA or SCT for object: ", obj@project.name)
-  as(m, "dgCMatrix")
+# Fast sparse row-collapsing by groups (sum)
+rowsum_sparse <- function(mat, groups){
+  f <- factor(groups)                                 # length = nrow(mat)
+  G <- Matrix::sparse.model.matrix(~ 0 + f)           # nrow(mat) x n_groups
+  out <- Matrix::t(G) %*% mat                         # n_groups x ncol(mat)
+  rownames(out) <- levels(f)
+  out
 }
 
-rds <- list.files(in_dir, pattern="\\.rds$", full.names=TRUE)
-for (f in rds) {
+rds_files <- list.files(in_dir, pattern = "\\.rds$", full.names = TRUE)
+for (f in rds_files) {
   obj <- readRDS(f)
 
-  m_counts <- safe_counts(obj)
-  new_genes <- map_to_symbol(rownames(m_counts))
+  if (!"RNA" %in% names(obj@assays)) stop("Object lacks an RNA assay: ", f)
 
-  # Collapse duplicates by **symbol** (sum) using rowsum on dense columns in chunks to save RAM
-  rownames(m_counts) <- new_genes
-  if (any(duplicated(new_genes))) {
-    # rowsum requires numeric matrix; do it sparsely:
-    # strategy: split by gene, sum sparse rows
-    idx <- split(seq_len(nrow(m_counts)), rownames(m_counts))
-    uniq_genes <- names(idx)
-    summed <- lapply(idx, function(ix) {
-      if (length(ix) == 1) m_counts[ix, , drop=FALSE]
-      else Matrix::colSums(m_counts[ix, , drop=FALSE,])
-    })
-    # Bind back (ensure sparse)
-    # Convert vectors to 1-row sparse matrices consistently
-    as_dgc <- function(x) {
-      if (is.matrix(x)) return(as(x, "dgCMatrix"))
-      i <- which(x != 0)
-      if (length(i) == 0) return(Matrix(0, nrow=1, ncol=length(x), sparse=TRUE))
-      Matrix::sparseMatrix(i = rep(1, length(i)), j = i, x = x[i],
-                           dims = c(1, length(x)))
-    }
-    summed_list <- lapply(summed, as_dgc)
-    m_counts <- do.call(rbind, summed_list)
-    rownames(m_counts) <- uniq_genes
-    # Ensure dimnames preserved
-    colnames(m_counts) <- colnames(obj)
+  counts <- GetAssayData(obj, assay = "RNA", slot = "counts")
+  if (is.null(counts) || nrow(counts) == 0) stop("Empty RNA counts in: ", f)
+
+  old_ids  <- rownames(counts)
+  new_syms <- map_to_symbol(old_ids)
+
+  # Collapse duplicate symbols by sum (sparse)
+  if (anyDuplicated(new_syms)) {
+    counts <- rowsum_sparse(counts, new_syms)
+  } else {
+    rownames(counts) <- new_syms
   }
 
-  # Rebuild Seurat with aligned meta.data (rownames must equal colnames(counts))
-  md <- obj@meta.data
-  # Force meta rownames == cell names exactly
-  if (!identical(rownames(md), colnames(m_counts))) {
-    md <- md[match(colnames(m_counts), rownames(md)), , drop=FALSE]
-    rownames(md) <- colnames(m_counts)
-  }
+  # Rebuild Seurat object and preserve metadata (align by cells)
+  meta <- obj@meta.data
+  meta <- meta[colnames(counts), , drop = FALSE]
 
-  obj2 <- CreateSeuratObject(counts = m_counts,
-                             project = obj@project.name,
-                             meta.data = md)
-  # carry over sample_id if present
-  if ("sample_id" %in% colnames(obj@meta.data)) {
-    obj2$sample_id <- obj@meta.data[colnames(obj2), "sample_id", drop=TRUE]
-  }
+  new_obj <- CreateSeuratObject(
+    counts  = counts,
+    project = obj@project.name %||% tools::file_path_sans_ext(basename(f)),
+    meta.data = meta,
+    min.cells = 0, min.features = 0
+  )
 
+  # Optional (recommended): recompute percent.mt now that symbols are standardized
+  mito <- grep("(?i)^MT[-.]", rownames(new_obj), value = TRUE, perl = TRUE)
+  if (length(mito) > 0) new_obj[["percent.mt"]] <- PercentageFeatureSet(new_obj, features = mito)
+
+  # Save
   out <- file.path(out_dir, basename(f))
-  saveRDS(obj2, out, compress="xz")
-  cat("Saved:", out, " | genes:", nrow(obj2), " cells:", ncol(obj2), "\n")
+  saveRDS(new_obj, out, compress = "xz")
+  cat(sprintf("Saved: %s | genes: %d | cells: %d\n", out, nrow(new_obj), ncol(new_obj)))
 }
+

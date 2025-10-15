@@ -17,6 +17,7 @@ nextflow run main.nf \
    --outdir /mnt/18T/chibao/gliomas/data/output_cell/nextflow \
    --skip_fastqc \
    --skip_cellbender \
+   -resume \
    2>&1 | tee /mnt/18T/chibao/gliomas/data/output_cell/nextflow/nextflow_run.log
 
 

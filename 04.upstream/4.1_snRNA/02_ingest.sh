@@ -3,8 +3,8 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 BASE="/mnt/18T/chibao/gliomas/data/upstream/snRNA"
-OUT="$BASE/snRNA_clean_2"
-MANIFEST="$OUT/snrna_manifest.tsv"
+OUT="/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2"
+MANIFEST="/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/snrna_manifest_2.tsv"
 
 mkdir -p "$OUT"/{rds,logs,summary,tmp}
 

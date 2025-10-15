@@ -4,9 +4,10 @@
 #   --root /mnt/18T/chibao/gliomas/data/fastq/official \
 #   --output /mnt/18T/chibao/gliomas/data/fastq/official/all_projects.csv \
 #   --sample-from samn \
-#    --projects "PRJNA1098411 PRJNA1125010 PRJNA1134206 PRJNA1141154 PRJNA797449 PRJNA1213849 PRJNA968165" \
+#    --projects "PRJNA1125010 PRJNA1134206 PRJNA1141154 PRJNA797449 PRJNA968165" \
 #   --split-by-project false
 
+# PRJNA1241125 PRJNA1213849 PRJNA1098411 
 
 set -Eeuo pipefail
 

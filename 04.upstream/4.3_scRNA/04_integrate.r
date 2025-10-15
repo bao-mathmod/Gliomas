@@ -8,8 +8,8 @@ library(glmGamPoi)
 # Ensure the object convert to V5
 options(Seurat.object.assay.version = "v5") 
 
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set1/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set1/integrated"; dir.create(out_dir, FALSE, TRUE)
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/integrated"; dir.create(out_dir, FALSE, TRUE)
 
 objs <- lapply(list.files(in_dir, pattern="\\.rds$", full.names=TRUE, recursive = TRUE), readRDS)
 
@@ -106,8 +106,8 @@ features <- SelectIntegrationFeatures(object.list = objs, nfeatures = 3000)
 objs <- PrepSCTIntegration(object.list = objs, anchor.features = features)
 
 # In case: Have tiny objects only
-# features <- SelectIntegrationFeatures(object.list = objs_main, nfeatures = 3000)
-# objs_main <- PrepSCTIntegration(object.list = objs_main, anchor.features = features)
+features <- SelectIntegrationFeatures(object.list = objs_main, nfeatures = 3000)
+objs_main <- PrepSCTIntegration(object.list = objs_main, anchor.features = features)
 
 
 # 2) IMPORTANT in RPCA: RunPCA on EACH object using the same features (v5 vignette)
@@ -117,7 +117,7 @@ objs <- lapply(objs, function(x) RunPCA(x, features = features))
 objs_main <- lapply(objs_main, function(x) RunPCA(x, features = features))
 
 # 3) Anchors (RPCA + SCT). Consider k.anchor tweak & reference-based integration for big cohorts
-anchors <- FindIntegrationAnchors(object.list = objs, # Change to objs_main if tiny objects excluded
+anchors <- FindIntegrationAnchors(object.list = objs_main, # Change to objs_main if tiny objects excluded
                                   normalization.method = "SCT",
                                   reduction = "rpca",
                                   anchor.features = features,
@@ -135,7 +135,7 @@ integrated <- RunUMAP(integrated, reduction = "pca", dims = 1:30, return.model =
 
 # Save for backup
 saveRDS(integrated, file.path(out_dir, "scrna_integrated.rds"), compress = "xz")
-saveRDS(objs_tiny, file.path(out_dir, "scrna_tiny_objects.rds"), compress = "xz")
+# saveRDS(objs_tiny, file.path(out_dir, "scrna_tiny_objects.rds"), compress = "xz")
 ## 4.1) Map each tiny object separately
 ## Pre-req (reference):
 ## integrated already has PCA; if you want UMAP projection, run with return.model=TRUE earlier:
@@ -192,14 +192,13 @@ mapped_list <- lapply(objs_tiny, map_one, ref = integrated, dims = 1:30)
 
 # 4.2) Merge mapped tiny objects into integrated
 integrated_plus <- merge(integrated, y = mapped_list)
-
 integrated <- FindNeighbors(integrated, reduction = "pca", dims = 1:30, verbose = FALSE)
 integrated <- FindClusters(integrated, resolution = c(0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4), verbose = FALSE)
 
 # integrated_plus <- FindNeighbors(integrated_plus, reduction = "pca", dims = 1:30, verbose = FALSE)
 # integrated_plus <- FindClusters(integrated_plus, resolution = c(0.2, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4), verbose = FALSE)
 
-saveRDS(integrated, file.path(out_dir, "snrna_integrated_plus.rds"), compress = "xz")
+saveRDS(integrated, file.path(out_dir, "scrna_integrated_enrich.rds"), compress = "xz")
 
 # Minimal audit export (as you prefer)
 md <- integrated_plus@meta.data
@@ -207,6 +206,20 @@ emb <- Embeddings(integrated_plus, "umap")
 md$umap_1 <- emb[,1]; md$umap_2 <- emb[,2]
 write.table(md, file.path(out_dir, "snrna_integrated_plus_metadata.tsv"),
             sep="\t", quote=FALSE, row.names=TRUE)
+
+
+integrated <- PrepSCTFindMarkers(integrated, assay = "SCT")
+# 1. ❗ IMPORTANT: Before running FindAllMarkers, ensure the SCT assay is properly prepared.
+# 2. ✅ Now, run FindAllMarkers again on the SCT assay.
+# The function will now use the properly prepared data.
+all_markers <- FindAllMarkers(
+  object = integrated, 
+  assay = "SCT", 
+  only.pos = TRUE, 
+  min.pct = 0.25, 
+  logfc.threshold = 0.25,
+  test.use = "wilcox" 
+)
 
 #################################################################################
 #!/usr/bin/env Rscript
@@ -221,13 +234,13 @@ suppressPackageStartupMessages({
 
 # == Configuration ==========================================================
 plan("multicore", workers = 8)
-options(future.globals.maxSize = 80 * 1024^2) # 80 GB
+options(future.globals.maxSize = 80 * 1024^3) # 80 GB
 options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/integrated_v5"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/integrated_v5_optimized"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -242,7 +255,7 @@ layer_names <- sapply(objs_list, function(x) unique(x$sample_uid))
 merged_obj <- merge(x = objs_list[[1]], y = objs_list[2:length(objs_list)], add.cell.ids = layer_names)
 
 # Split the RNA assay by the 'orig.ident' which now corresponds to your layers
-merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
+# merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
 
 # Clean up memory
 rm(objs_list)
@@ -378,8 +391,8 @@ options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # -- Define Paths -----------------------------------------------------------
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/integrated_v5"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/integrated_v5_optmi"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 
