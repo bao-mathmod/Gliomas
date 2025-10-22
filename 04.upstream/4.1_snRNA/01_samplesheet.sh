@@ -122,11 +122,11 @@ IFS=$'\n\t'
 
 # ============ CONFIG ==========================
 # Root that contains PRJNA*/… snRNA outputs
-BASE_DIR="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/set2"
+BASE_DIR="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/official"
 
 # Where to write the manifest (MATCHES the ingest script below)
-OUT_DIR="/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2"
-OUT_FILE="$OUT_DIR/snrna_manifest_set2.tsv"
+OUT_DIR="/mnt/18T/chibao/gliomas/data/upstream/snRNA/official"
+OUT_FILE="$OUT_DIR/snrna_official_manifest.tsv"
 
 # Default annotation (edit as needed)
 DEF_GENOME="GRCh38"

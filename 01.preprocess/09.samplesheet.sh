@@ -2,9 +2,9 @@
 
 # bash /mnt/18T/chibao/gliomas/code/01.preprocess/09.samplesheet.sh \
 #   --root /mnt/18T/chibao/gliomas/data/fastq/official \
-#   --output /mnt/18T/chibao/gliomas/data/fastq/official/all_projects.csv \
+#   --output /mnt/18T/chibao/gliomas/data/fastq/official/all_projects_2.csv \
 #   --sample-from samn \
-#    --projects "PRJNA1125010 PRJNA1134206 PRJNA1141154 PRJNA797449 PRJNA968165" \
+#    --projects "PRJNA971603 PRJNA1081384 PRJNA1134206 PRJNA1241125" \
 #   --split-by-project false
 
 # PRJNA1241125 PRJNA1213849 PRJNA1098411 

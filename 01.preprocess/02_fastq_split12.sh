@@ -40,7 +40,7 @@ MISMATCH_ACTION="quarantine"   # one of: keep | delete | quarantine
 QUARANTINE_ROOT="$OUTPUT_DIR/_quarantine"
 
 # Resume mode: when true, skip work already marked done and avoid duplicate appends
-RESUME=true
+RESUME=false
 
 # ========================
 # Split ID handling

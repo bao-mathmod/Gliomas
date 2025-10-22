@@ -12,9 +12,9 @@ set -Eeuo pipefail
 
 # bash /mnt/12T/chibao/code/01.preprocess/07_move.sh \
 #     --project PRJNA1241125 \
-#     --root-base "/mnt/18T/chibao/gliomas/data/fastq/sra" \
-#     --metadata-root "/mnt/12T/chibao/data/official_data/metadata/official/split1" \
-#     --log "/mnt/18T/chibao/gliomas/data/fastq/sra/logs/PRJNA1241125" \
+#     --root-base "/mnt/18T/chibao/gliomas/data/fastq/official" \
+#     --metadata-root "/mnt/18T/chibao/gliomas/data/metadata/official/split10" \
+#     --log "/mnt/18T/chibao/gliomas/data/fastq/official/logs/PRJNA1241125" \
 #     --dry-run true
 
 ROOT_BASE="/mnt/18T/chibao/gliomas/data/fastq/sra"

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # Adjust only if your layout differs
-SPLIT_ID="split9"
+SPLIT_ID="split12"
 FASTQ_ROOT="/mnt/18T/chibao/gliomas/data/fastq/ena/${SPLIT_ID}"
 QUAR="$FASTQ_ROOT/_quarantine"
 

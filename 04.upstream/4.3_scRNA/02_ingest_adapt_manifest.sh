@@ -3,9 +3,9 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 # ======================= CONFIG ==========================
-BASE="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official"
+BASE="/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_1"
 OUT="$BASE"
-MANIFEST="$OUT/scrna_official_manifest.tsv"     # <-- your NEW manifest with sample_uid column
+MANIFEST="$OUT/scrna_manifest_1_1.tsv"     # <-- your NEW manifest with sample_uid column
 # =========================================================
 
 mkdir -p "$OUT"/{rds,logs,summary,plots}
@@ -135,7 +135,7 @@ apply_adaptive_scrna_filters <- function(sobj, mad_k=3, min_cells_after_filter=2
   mito_median <- median(meta$percent.mt, na.rm = TRUE)
   mito_mad    <- mad(meta$percent.mt, na.rm = TRUE, constant=1.4826)
   mito_upper  <- mito_median + mad_k * mito_mad
-  mito_final  <- min(mito_upper, 15.0)
+  mito_final  <- min(mito_upper, 20.0)
 
   feat_median <- median(meta$nFeature_RNA, na.rm = TRUE)
   feat_mad    <- mad(meta$nFeature_RNA, na.rm = TRUE, constant=1.4826)

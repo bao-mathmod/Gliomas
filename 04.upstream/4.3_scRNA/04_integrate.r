@@ -233,14 +233,14 @@ suppressPackageStartupMessages({
 })
 
 # == Configuration ==========================================================
-plan("multicore", workers = 8)
-options(future.globals.maxSize = 80 * 1024^3) # 80 GB
+plan("multisession", workers = 4)
+options(future.globals.maxSize = 140 * 1024^3) # 60 GB
 options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/integrated_v5_optimized"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/integrated_v5_optimized"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -313,7 +313,7 @@ merged_obj <- FindNeighbors(merged_obj, reduction = "integrated.rpca", dims = 1:
 merged_obj <- FindClusters(
   merged_obj,
   graph.name = "SCT_snn",
-  resolution = c(0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
+  resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
   algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
   verbose = FALSE
 )
@@ -362,7 +362,7 @@ all_markers <- FindAllMarkers(
 )
 
 # Save results
-saveRDS(merged_obj, file.path(out_dir, "scrna_integrated_enrich.rds"))
+saveRDS(merged_obj, file.path(out_dir, "scrna_integrated_hgns.rds"))
 write.csv(all_markers, file.path(out_dir, "all_cluster_markers_res0.8.csv"))
 
 message("✅ Workflow Complete!")
@@ -391,8 +391,8 @@ options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # -- Define Paths -----------------------------------------------------------
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1/integrated_v5_optmi"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/integrated_v5_optmi"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 
@@ -429,7 +429,7 @@ layer_names <- sapply(main_objs_list, function(x) unique(x$sample_uid))
 merged_main_obj <- merge(x = main_objs_list[[1]], y = main_objs_list[2:length(main_objs_list)], add.cell.ids = layer_names)
 
 # Split the RNA assay by sample; this creates the 'layers' for integration.
-merged_main_obj[["RNA"]] <- split(merged_main_obj[["RNA"]], f = merged_main_obj$orig.ident)
+# merged_main_obj[["RNA"]] <- split(merged_main_obj[["RNA"]], f = merged_main_obj$orig.ident)
 
 rm(main_objs_list)
 gc()

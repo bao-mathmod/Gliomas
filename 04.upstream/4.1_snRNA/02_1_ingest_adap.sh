@@ -215,10 +215,10 @@ IFS=$'\n\t'
 
 # ======================= CONFIG ==========================
 # Input manifest (MATCHES A)
-MANIFEST="/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2/snrna_manifest_set2.tsv"
+MANIFEST="/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/snrna_official_manifest.tsv"
 
 # Output base
-BASE="/mnt/18T/chibao/gliomas/data/upstream/snRNA/set2"
+BASE="/mnt/18T/chibao/gliomas/data/upstream/snRNA/official"
 OUT="$BASE"
 # =========================================================
 
@@ -302,6 +302,7 @@ read_tsv_wide_sparse <- function(path) {
 
 # ---------- QC helpers (snRNA friendly) ----------
 add_qc_metrics <- function(sobj){
+  # 1. Calculate percent.mt
   mt_genes <- grep("^MT-", rownames(sobj), value=TRUE)
   if (length(mt_genes) > 0) {
     sobj[["percent.mt"]] <- PercentageFeatureSet(sobj, features = mt_genes)
@@ -310,6 +311,18 @@ add_qc_metrics <- function(sobj){
     sobj[["percent.mt"]] <- 0
     log(sprintf("No MT- genes found for %s; setting percent.mt=0.", sobj$sample_uid[1]))
   }
+  
+  # 2. Calculate percent.ribo (MOVED INSIDE)
+  # Use ignore.case=TRUE for robustness (e.g., Rps, rpl)
+  ribo_genes <- grep("^RP[SL][0-9]", rownames(sobj), value = TRUE, ignore.case = TRUE)
+  if (length(ribo_genes) > 0) {
+    sobj[["percent.ribo"]] <- PercentageFeatureSet(sobj, features = ribo_genes)
+  } else {
+    sobj[["percent.ribo"]] <- 0
+    log(sprintf("No Ribo genes (RP[SL]) found for %s; setting percent.ribo=0.", sobj$sample_uid[1]))
+  }
+  
+  # 3. Return the object
   sobj
 }
 
@@ -349,7 +362,7 @@ apply_adaptive_snrna_filters <- function(sobj, mad_k=3, min_cells_after_filter=2
 save_qc_violin <- function(sobj, outdir, suid, stage=c("pre_qc","post_qc")){
   pdir <- file.path(outdir, "plots", suid)
   dir.create(pdir, recursive = TRUE, showWarnings = FALSE)
-  for (feat in c("nFeature_RNA","nCount_RNA","percent.mt")) {
+  for (feat in c("nFeature_RNA","nCount_RNA","percent.mt", "percent.ribo")) {
     p <- VlnPlot(sobj, features=feat, pt.size=0) + NoLegend() + ggtitle(paste0(suid," • ",feat," (",stage,")"))
     ggsave(file.path(pdir, paste0(stage,"_",feat,".png")), plot=p, width=6, height=5, dpi=100)
   }
@@ -364,7 +377,7 @@ run_denoise <- function(sobj){
 
 sct_normalize <- function(sobj){
   suppressWarnings({
-    sobj <- SCTransform(sobj, vst.flavor="v2", verbose=FALSE, vars.to.regress="percent.mt")
+    sobj <- SCTransform(sobj, vst.flavor="v2", verbose=FALSE, vars.to.regress=c("percent.mt", "percent.ribo"))
     sobj <- RunPCA(sobj, verbose=FALSE)
     sobj <- RunUMAP(sobj, dims=1:30, verbose=FALSE)
   })
@@ -411,6 +424,7 @@ if (!file.exists(summary_tsv)) {
                genome=character(), chemistry=character(),
                cells_raw=integer(), cells_postQC=integer(),
                median_genes=double(), median_counts=double(), median_pct_mt=double(),
+               median_pct_ribo=double(), # <-- ADD THIS COLUMN
                path_rds=character(), stringsAsFactors=FALSE),
     file=summary_tsv, sep="\t", quote=FALSE, row.names=FALSE
   )
@@ -486,12 +500,13 @@ for (i in seq_len(nrow(manifest))) {
       sample_uid   = suid,
       orig_sample_id = sample,
       genome       = genome,
-      chemistry    = chem,
+      chem         = chem,
       cells_raw    = raw_n,
       cells_postQC = postqc_n,
       median_genes = median(sobj$nFeature_RNA, na.rm=TRUE),
       median_counts= median(sobj$nCount_RNA, na.rm=TRUE),
       median_pct_mt= median(sobj$percent.mt, na.rm=TRUE),
+      median_pct_ribo= median(sobj$percent.ribo, na.rm=TRUE), # <-- ADD THIS VALUE
       path_rds     = rds_path,
       stringsAsFactors=FALSE
     )
