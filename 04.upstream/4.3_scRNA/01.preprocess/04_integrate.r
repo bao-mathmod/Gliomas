@@ -228,19 +228,23 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(ggplot2)
   library(future)
+  library(presto)
   library(harmony) # Recommended alternative method
-  library(glmGamPoi) 
+  library(glmGamPoi)
+  library(SeuratData)
+  library(SeuratWrappers)
+  library(Azimuth)
 })
 
 # == Configuration ==========================================================
-plan("multisession", workers = 4)
-options(future.globals.maxSize = 140 * 1024^3) # 60 GB
+plan("multicore", workers = 20)
+options(future.globals.maxSize = 400 * 1024^3) # 450 GB
 options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/set1_manifest/integrated_v5_optimized"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/sc_sn/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -254,8 +258,13 @@ message("Merging objects into a single Seurat object with layers...")
 layer_names <- sapply(objs_list, function(x) unique(x$sample_uid))
 merged_obj <- merge(x = objs_list[[1]], y = objs_list[2:length(objs_list)], add.cell.ids = layer_names)
 
+# Join 
+DefaultAssay(merged_obj) <- "RNA"
+merged_obj <- JoinLayers(merged_obj)
+
 # Split the RNA assay by the 'orig.ident' which now corresponds to your layers
-# merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
+merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
+# merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$sample_uid)
 
 # Clean up memory
 rm(objs_list)
@@ -268,6 +277,7 @@ g2m.genes <- cc.genes$g2m.genes
 merged_obj <- NormalizeData(merged_obj, verbose = FALSE)
 merged_obj <- CellCycleScoring(merged_obj, s.features = s.genes, g2m.features = g2m.genes)
 
+merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized/merge_backup_nonSCT.rds')
 # == 2. SCTransform Normalization ============================================
 message("Step 2: Running SCTransform on each layer...")
 # SCTransform is run on the merged object, and it will automatically process each layer independently.
@@ -277,46 +287,181 @@ merged_obj <- SCTransform(merged_obj,
                           vars.to.regress = c("S.Score", "G2M.Score"),
                           verbose = FALSE)
 
+message("Step 2.1: Save file for Backup...")
+# Save intermediate object for backup
+saveRDS(merged_obj, file.path(out_dir, "merge_backup_SCT.rds"))
+
+# For safety, reload the backup
+merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/merge_backup.rds')
+
+# merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized/merge_backup_SCT.rds')
+merged_obj
 # Run PCA on the SCT assay. Seurat will automatically perform this for each layer.
-message("Running PCA on each layer...")
-merged_obj <- RunPCA(merged_obj, assay = "SCT", verbose = FALSE)
+message("Running PCA and UMAP on each layer...")
+merged_obj <- RunPCA(merged_obj, assay = "SCT", npcs = 60, verbose = FALSE)
+merged_obj <- RunUMAP(merged_obj, dims = 1:30, verbose = FALSE)
+
+harmony_obj <- merged_obj
+scvi_obj <- merged_obj
+message("Step 2.2: Integrating layers using Harmony...")
+# backup <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/merge_backup.rds')
+# backup <- RunPCA(backup, assay = "SCT", verbose = FALSE)
+# backup <- RunUMAP(backup, dims = 1:30, verbose = FALSE)
+harmony_obj <- IntegrateLayers(
+  object = harmony_obj,
+  method = HarmonyIntegration,
+  normalization.method = "SCT",
+  # reference = reference_datasets,
+  orig.reduction = "pca",
+  k.weight = 50,
+  new.reduction = "harmony", # Name of the new integrated reduction
+  dims = 1:30, # Using more PCs can be beneficial for complex datasets
+  verbose = TRUE
+)
 
 # == 3. Integration using Seurat v5 `IntegrateLayers` ========================
 message("Step 3: Integrating layers using reference-based RPCA...")
-# This single function replaces FindIntegrationAnchors, IntegrateData, etc.
-# It is faster and is the recommended Seurat v5 workflow.
-
-# --- IMPORTANT: CHOOSE YOUR REFERENCE(S) ---
-# Select one or more high-quality datasets as the reference.
-# These should have high cell counts and good feature detection.
-# Let's assume the first two datasets are your references.
-# reference_datasets <- c(1, 2)
-
+# RPCA Integration
 merged_obj <- IntegrateLayers(
   object = merged_obj,
   method = RPCAIntegration,
   normalization.method = "SCT",
   # reference = reference_datasets,
   orig.reduction = "pca",
+  k.weight = 50,
   new.reduction = "integrated.rpca", # Name of the new integrated reduction
-  dims = 1:50, # Using more PCs can be beneficial for complex datasets
+  dims = 1:30, # Using more PCs can be beneficial for complex datasets
   verbose = TRUE
 )
+
+# Deep integration using scVI
+Sys.setenv(
+  RETICULATE_PYTHON = "/opt/miniforge/envs/scvi/bin/python",
+  # Hide all GPUs from CUDA & Lightning (must be set before Python initializes!)
+  CUDA_VISIBLE_DEVICES = "",
+  PL_ACCELERATOR = "cpu",
+  PL_DEVICES = "1"
+)
+library(reticulate)
+py_config()
+reticulate::py_run_string("
+import torch
+print('CUDA available:', torch.cuda.is_available())
+")
+# Expect: CUDA available: False
+
+DefaultAssay(scvi_obj) <- "RNA"
+features_to_integrate <- VariableFeatures(scvi_obj, assay = "SCT")
+scvi_obj <- IntegrateLayers(
+  object = scvi_obj,
+  method = scVIIntegration,
+  new.reduction = "integrated.scvi",
+  features = features_to_integrate,  # <-- This is the main fix
+  conda_env = "/opt/miniforge/envs/scvi",
+  verbose = TRUE
+)
+
+# Harmony 
+
+# Save
+saveRDS(scvi_obj, file.path('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized', "sc_integrated_scvi.rds"))
+
 
 # == 4. Downstream Analysis and Clustering ===================================
 message("Step 4: UMAP, Neighbors, and Clustering on integrated data...")
 # Note: All downstream steps now use the new 'integrated.rpca' reduction
-merged_obj <- RunUMAP(merged_obj, reduction = "integrated.rpca", dims = 1:50, reduction.name = "umap.rpca")
-merged_obj <- FindNeighbors(merged_obj, reduction = "integrated.rpca", dims = 1:50)
-
-# Run clustering at multiple resolutions to explore granularity
-merged_obj <- FindClusters(
-  merged_obj,
-  graph.name = "SCT_snn",
+# Harmony
+harmony_obj <- RunPCA(harmony_obj, assay = "SCT", npcs = 100, verbose = FALSE)
+harmony_obj <- RunUMAP(harmony_obj, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
+harmony_obj <- FindNeighbors(harmony_obj, reduction = "harmony", dims = 1:30)
+harmony_obj <- FindClusters(
+  harmony_obj,
+  #graph.name = "SCT_snn",
   resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
   algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
   verbose = FALSE
 )
+
+# RPCA
+merged_obj <- RunUMAP(merged_obj, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
+# merged_obj <- RunTSNE(merged_obj, 
+#                       reduction = "integrated.rpca", 
+#                       dims = 1:30, 
+#                       reduction.name = "tsne.rpca",
+#                       verbose = FALSE)
+merged_obj <- FindNeighbors(merged_obj, reduction = "integrated.rpca", dims = 1:30)
+merged_obj <- FindClusters(
+  merged_obj,
+  #graph.name = "SCT_snn",
+  resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
+  algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
+  verbose = FALSE
+)
+
+# scVI
+# scvi_obj <- RunPCA(scvi_obj, assay = "SCT", npcs = 100, verbose = FALSE)
+# scvi_obj <- RunUMAP(scvi_obj, reduction = "integrated.scvi", dims = 1:30, reduction.name = "umap.scvi")
+scvi_obj <- FindNeighbors(
+  scvi_obj,
+  reduction = "integrated.scvi",
+  dims      = 1:30,
+  k.param   = 100,
+  nn.method = "annoy",         # optional: for very large objects; needs RcppAnnoy installed
+  annoy.metric = "cosine"     # optional: if you prefer cosine in neighbor graph
+  #graph.name = sprintf("SNN_scvi_k%d_d%d", best_k, latent_k)  # keeps graphs identifiable
+)
+
+scvi_obj <- FindClusters(
+  scvi_obj,
+  #graph.name = "SCT_snn",
+  resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
+  algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
+  verbose = FALSE
+)
+
+# 1) Pull the scVI latent (30D unless you re-integrated with ndims)
+latent_name <- "integrated.scvi"
+X <- Embeddings(scvi_obj, latent_name)
+stopifnot(is.matrix(X) && is.finite(X[1,1]))
+
+# 2) Set your tuned params (you can tweak these)
+umap_metric     <- "cosine"
+umap_neighbors  <- 200
+umap_min_dist   <- 0.50
+umap_epochs     <- 500
+annoy_trees     <- 75
+annoy_search_k  <- 6000
+set.seed(1234)
+
+# 3) Run uwot::umap directly with PCA init (bypasses spectral init)
+#    NOTE: n_threads controls both Annoy search and SGD threads here.
+U <- uwot::umap(
+  X,
+  n_neighbors   = umap_neighbors,
+  metric        = umap_metric,
+  min_dist      = umap_min_dist,
+  n_epochs      = umap_epochs,
+  init          = "pca",        # <-- crucial to avoid spectral
+  n_trees       = annoy_trees,  # Annoy index
+  search_k      = annoy_search_k,
+  n_threads     = parallel::detectCores(),  # or set an integer
+  verbose       = TRUE
+)
+
+# 4) Attach as a Seurat reduction
+umap_name <- sprintf("umap.scvi.nd%d.k%d.md%02d.%s",
+                     ncol(X), umap_neighbors, as.integer(umap_min_dist*100), umap_metric)
+
+scvi_obj[[umap_name]] <- CreateDimReducObject(
+  embeddings = U,
+  key       = "UMAP_",
+  assay     = DefaultAssay(scvi_obj)
+)
+
+# 5) Quick checks
+cat("UMAP dims:", ncol(Embeddings(scvi_obj, umap_name)), " (expect 2)\n")
+cat("UMAP rows:", nrow(Embeddings(scvi_obj, umap_name)), " (expect ~", nrow(X), ")\n")
+
 # == 5. VALIDATION AND VISUALIZATION ========================================
 message("Step 5: Validating and visualizing integration results...")
 
@@ -346,7 +491,7 @@ message("VALIDATION NOTE: Review the UMAP plots. For quantitative analysis, cons
 # == 6. Marker Gene Identification ===========================================
 message("Step 6: Finding marker genes for a chosen resolution...")
 # After choosing a stable resolution (e.g., 0.8), set it as the main identity.
-Idents(merged_obj) <- "rpca_clusters_res.0.8"
+Idents(merged_obj) <- "SCT_snn_res.0.04"
 
 # Prepare the SCT assay for DE analysis
 # This is required when using multiple SCT models
@@ -361,8 +506,32 @@ all_markers <- FindAllMarkers(
   test.use = "wilcox"
 )
 
+cluster0 <- all_markers %>% filter(cluster == 0) %>% arrange(desc(avg_log2FC))
+cluster1 <- all_markers %>% filter(cluster == 1) %>% arrange(desc(avg_log2FC))
+cluster2 <- all_markers %>% filter(cluster == 2) %>% arrange(desc(avg_log2FC))
+cluster3 <- all_markers %>% filter(cluster == 3) %>% arrange(desc(avg_log2FC))
+cluster4 <- all_markers %>% filter(cluster == 4) %>% arrange(desc(avg_log2FC))
+cluster5 <- all_markers %>% filter(cluster == 5) %>% arrange(desc(avg_log2FC))
+cluster6 <- all_markers %>% filter(cluster == 6) %>% arrange(desc(avg_log2FC))
+cluster7 <- all_markers %>% filter(cluster == 7) %>% arrange(desc(avg_log2FC))
+cluster8 <- all_markers %>% filter(cluster == 8) %>% arrange(desc(avg_log2FC))
+cluster9 <- all_markers %>% filter(cluster == 9) %>% arrange(desc(avg_log2FC))
+
+cluster0 |> head(10)
+cluster1 |> head(10)
+cluster2 |> head(10)
+cluster3 |> head(10)
+cluster4 |> head(10)
+cluster5 |> head(10)
+cluster6 |> head(10)
+cluster7 |> head(10)
+cluster8 |> head(10)
+cluster9 |> head(10)
+
 # Save results
-saveRDS(merged_obj, file.path(out_dir, "scrna_integrated_hgns.rds"))
+saveRDS(merged_obj, file.path(out_dir, "scrna_integrated_harmony_final.rds"))
+saveRDS(harmony_obj, file.path(out_dir, "scrna_integrated_cca.rds"))
+
 write.csv(all_markers, file.path(out_dir, "all_cluster_markers_res0.8.csv"))
 
 message("✅ Workflow Complete!")
