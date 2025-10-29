@@ -243,8 +243,8 @@ options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/sc_sn/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/rds_snrna"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/integrated_v5_optimized/adult"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -277,7 +277,6 @@ g2m.genes <- cc.genes$g2m.genes
 merged_obj <- NormalizeData(merged_obj, verbose = FALSE)
 merged_obj <- CellCycleScoring(merged_obj, s.features = s.genes, g2m.features = g2m.genes)
 
-merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized/merge_backup_nonSCT.rds')
 # == 2. SCTransform Normalization ============================================
 message("Step 2: Running SCTransform on each layer...")
 # SCTransform is run on the merged object, and it will automatically process each layer independently.
@@ -292,13 +291,13 @@ message("Step 2.1: Save file for Backup...")
 saveRDS(merged_obj, file.path(out_dir, "merge_backup_SCT.rds"))
 
 # For safety, reload the backup
-merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/merge_backup.rds')
+merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/merge_backup_SCT.rds')
 
 # merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/sc_sn/official/integrated_v5_optimized/merge_backup_SCT.rds')
 merged_obj
 # Run PCA on the SCT assay. Seurat will automatically perform this for each layer.
 message("Running PCA and UMAP on each layer...")
-merged_obj <- RunPCA(merged_obj, assay = "SCT", npcs = 60, verbose = FALSE)
+merged_obj <- RunPCA(merged_obj, assay = "SCT", verbose = FALSE)
 merged_obj <- RunUMAP(merged_obj, dims = 1:30, verbose = FALSE)
 
 harmony_obj <- merged_obj
@@ -401,6 +400,37 @@ merged_obj <- FindClusters(
 # scVI
 # scvi_obj <- RunPCA(scvi_obj, assay = "SCT", npcs = 100, verbose = FALSE)
 # scvi_obj <- RunUMAP(scvi_obj, reduction = "integrated.scvi", dims = 1:30, reduction.name = "umap.scvi")
+
+scvi_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/sc_integrated_scvi.rds')
+scvi_obj
+DefaultAssay(scvi_obj) <- "SCT"
+scvi_obj <- FindNeighbors(
+  scvi_obj,
+  reduction   = "integrated.scvi",
+  dims        = 1:30,
+  k.param     = 100,
+  nn.method   = "rann",
+  graph.name  = c("scvi_nn", "scvi_snn")   # <-- first = kNN, second = SNN
+)
+
+
+scvi_obj <- FindClusters(
+  scvi_obj,
+  graph.name = "scvi_snn",
+  resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
+  algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
+  verbose = FALSE
+)
+scvi_obj <- RunUMAP(
+  scvi_obj,
+  reduction      = "integrated.scvi",
+  dims           = 1:30,
+  nn.name        = "scvi_nn",
+  reduction.name = "umap.scvi",
+  verbose        = FALSE
+)
+
+
 scvi_obj <- FindNeighbors(
   scvi_obj,
   reduction = "integrated.scvi",
@@ -498,7 +528,7 @@ Idents(merged_obj) <- "SCT_snn_res.0.04"
 merged_obj <- PrepSCTFindMarkers(merged_obj, assay = "SCT", verbose = TRUE)
 
 all_markers <- FindAllMarkers(
-  object = merged_obj,
+  object = harmony_obj,
   assay = "SCT",
   only.pos = TRUE,
   min.pct = 0.25,
@@ -516,6 +546,25 @@ cluster6 <- all_markers %>% filter(cluster == 6) %>% arrange(desc(avg_log2FC))
 cluster7 <- all_markers %>% filter(cluster == 7) %>% arrange(desc(avg_log2FC))
 cluster8 <- all_markers %>% filter(cluster == 8) %>% arrange(desc(avg_log2FC))
 cluster9 <- all_markers %>% filter(cluster == 9) %>% arrange(desc(avg_log2FC))
+cluster10 <- all_markers %>% filter(cluster == 10) %>% arrange(desc(avg_log2FC))
+cluster11 <- all_markers %>% filter(cluster == 11) %>% arrange(desc(avg_log2FC))
+cluster12 <- all_markers %>% filter(cluster == 12) %>% arrange(desc(avg_log2FC))
+cluster13 <- all_markers %>% filter(cluster == 13) %>% arrange(desc(avg_log2FC))
+cluster14 <- all_markers %>% filter(cluster == 14) %>% arrange(desc(avg_log2FC))
+cluster15 <- all_markers %>% filter(cluster == 15) %>% arrange(desc(avg_log2FC))
+cluster16 <- all_markers %>% filter(cluster == 16) %>% arrange(desc(avg_log2FC))
+cluster17 <- all_markers %>% filter(cluster == 17) %>% arrange(desc(avg_log2FC))
+cluster18 <- all_markers %>% filter(cluster == 18) %>% arrange(desc(avg_log2FC))
+cluster19 <- all_markers %>% filter(cluster == 19) %>% arrange(desc(avg_log2FC))
+cluster20 <- all_markers %>% filter(cluster == 20) %>% arrange(desc(avg_log2FC)) 
+cluster21 <- all_markers %>% filter(cluster == 21) %>% arrange(desc(avg_log2FC))
+cluster22 <- all_markers %>% filter(cluster == 22) %>% arrange(desc(avg_log2FC))
+cluster23 <- all_markers %>% filter(cluster == 23) %>% arrange(desc(avg_log2FC))
+cluster24 <- all_markers %>% filter(cluster == 24) %>% arrange(desc(avg_log2FC))
+cluster25 <- all_markers %>% filter(cluster == 25) %>% arrange(desc(avg_log2FC))
+cluster26 <- all_markers %>% filter(cluster == 26) %>% arrange(desc(avg_log2FC))
+cluster27 <- all_markers %>% filter(cluster == 27) %>% arrange(desc(avg_log2FC))
+cluster28 <- all_markers %>% filter(cluster == 28) %>% arrange(desc(avg_log2FC))
 
 cluster0 |> head(10)
 cluster1 |> head(10)
@@ -527,6 +576,25 @@ cluster6 |> head(10)
 cluster7 |> head(10)
 cluster8 |> head(10)
 cluster9 |> head(10)
+cluster10 |> head(10)
+cluster11 |> head(10)
+cluster12 |> head(10)
+cluster13 |> head(10)
+cluster14 |> head(10)
+cluster15 |> head(10)
+cluster16 |> head(10)
+cluster17 |> head(10)
+cluster18 |> head(10)
+cluster19 |> head(10)
+cluster20 |> head(10)
+cluster21 |> head(10)
+cluster22 |> head(10)
+cluster23 |> head(10)
+cluster24 |> head(10)
+cluster25 |> head(10)
+cluster26 |> head(10)
+cluster27 |> head(10)
+cluster28 |> head(10)
 
 # Save results
 saveRDS(merged_obj, file.path(out_dir, "scrna_integrated_harmony_final.rds"))
