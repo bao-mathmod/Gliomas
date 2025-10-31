@@ -263,8 +263,8 @@ DefaultAssay(merged_obj) <- "RNA"
 merged_obj <- JoinLayers(merged_obj)
 
 # Split the RNA assay by the 'orig.ident' which now corresponds to your layers
-merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
-# merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$sample_uid)
+# merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
+merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$sample_uid)
 
 # Clean up memory
 rm(objs_list)
@@ -288,7 +288,7 @@ merged_obj <- SCTransform(merged_obj,
 
 message("Step 2.1: Save file for Backup...")
 # Save intermediate object for backup
-saveRDS(merged_obj, file.path(out_dir, "merge_backup_SCT.rds"))
+saveRDS(merged_obj, file.path(out_dir, "merge_backup_SCT_2samp.rds"))
 
 # For safety, reload the backup
 merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/merge_backup_SCT.rds')
@@ -312,7 +312,7 @@ harmony_obj <- IntegrateLayers(
   normalization.method = "SCT",
   # reference = reference_datasets,
   orig.reduction = "pca",
-  k.weight = 50,
+  #k.weight = 50,
   new.reduction = "harmony", # Name of the new integrated reduction
   dims = 1:30, # Using more PCs can be beneficial for complex datasets
   verbose = TRUE
@@ -381,6 +381,43 @@ harmony_obj <- FindClusters(
   verbose = FALSE
 )
 
+
+# Batchelor
+library(batchelor)
+set.seed(1101)
+# Convert to SCE
+DefaultAssay(merged_obj) <- "SCT"
+# as.SingleCellExperiment will put RNA@counts into `counts` (if present)
+# and the current assay's data (SCT) into `logcounts`.
+sce <- as.SingleCellExperiment(merged_obj, assay = "SCT")
+assayNames(sce)      # should include "counts" (raw) and "logcounts" (SCT)
+table(sce$orig.ident)
+# Split by batch
+sce_norm <- batchelor::multiBatchNorm(sce, batch = sce$orig.ident)
+sce_norm <- correctExperiments(sce_norm, batch=sce_norm$orig.ident, PARAM=FastMnnParam())
+seu <- sce_norm
+library(scater)
+sce_norm <- runUMAP(sce_norm, dimred="corrected")
+library(bluster)
+colLabels(sce_norm) <- clusterRows(reducedDim(sce_norm, "corrected"), NNGraphParam())
+
+# 1. Specify the filename and open the PDF device
+pdf(file = "/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/integrated_v5_optimized/adult/my_combined_plot.pdf", width = 10, height = 5) 
+
+# 2. Re-run your plotting command, but print the result directly
+p <- gridExtra::grid.arrange(
+    plotUMAP(sce_norm, colour_by="label", text_by="label"),
+    plotUMAP(sce_norm, colour_by="batch"),
+    ncol=2
+)
+
+# Explicitly print the gtable object 'p' to the open device
+grid::grid.draw(p)
+
+# 3. Close the device to finalize the file
+dev.off()
+
+ggsave(filename = plot_dir, plot = p1)
 # RPCA
 merged_obj <- RunUMAP(merged_obj, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
 # merged_obj <- RunTSNE(merged_obj, 
