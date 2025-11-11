@@ -243,8 +243,8 @@ options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/rds_snrna"
-out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/snRNA/official/integrated_v5_optimized/adult"
+in_dir  <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/rds_adult"
+out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -257,15 +257,17 @@ message("Merging objects into a single Seurat object with layers...")
 # We use the 'sample_uid' from your metadata to name the layers
 layer_names <- sapply(objs_list, function(x) unique(x$sample_uid))
 merged_obj <- merge(x = objs_list[[1]], y = objs_list[2:length(objs_list)], add.cell.ids = layer_names)
-
+merged_obj
 # Join 
 DefaultAssay(merged_obj) <- "RNA"
+merged_obj
 merged_obj <- JoinLayers(merged_obj)
+merged_obj
 
 # Split the RNA assay by the 'orig.ident' which now corresponds to your layers
 # merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
-merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$sample_uid)
-
+merged_obj[["RNA"]] <- split(merged_obj[["RNA"]], f = merged_obj$orig.ident)
+merged_obj
 # Clean up memory
 rm(objs_list)
 gc()
