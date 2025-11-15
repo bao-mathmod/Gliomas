@@ -64,8 +64,9 @@ myeloid <- SCTransform(myeloid,
                        vars.to.regress = c("percent.mt", "S.Score", "G2M.Score"),
                        verbose = TRUE)
 myeloid
+backup_SCT <- myeloid
 # Save file for backup
-saveRDS(myeloid,'/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_SCT.rds')
+saveRDS(backup_SCT,'/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_SCT.rds')
 
 # Run the Harmony Integration
 myeloid <- RunPCA(myeloid, assay = "SCT", verbose = FALSE)
@@ -97,4 +98,6 @@ saveRDS(myeloid, '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrate
 plot_dir <- '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_harmony.png'
 p <- DimPlot(myeloid, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.05', label = TRUE)
 ggsave(filename = plot_dir, plot = p)
+
+
 
