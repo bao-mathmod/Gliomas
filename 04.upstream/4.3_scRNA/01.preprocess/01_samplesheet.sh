@@ -3,9 +3,9 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 # ============ CONFIG (edit as needed) ==========================
-BASE_DIR="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/official"
-OUT_DIR="/mnt/18T/chibao/gliomas/data/upstream/snRNA/official"
-OUT_FILE="$OUT_DIR/snrna_official_manifest.tsv"
+BASE_DIR="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/official/dry_run"
+OUT_DIR="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/official/dry_run"
+OUT_FILE="$OUT_DIR/snrna_official_manifest_dryrun.tsv"
 
 DEF_GENOME="GRCh38"
 DEF_CHEM="10x"
