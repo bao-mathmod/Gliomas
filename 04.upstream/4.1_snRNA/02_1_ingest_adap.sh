@@ -528,8 +528,8 @@ IFS=$'\n\t'
 
 # ======================= CONFIG ==========================
 BASE="/mnt/18T/chibao/gliomas/data/upstream/snRNA/official_dry_run"
-OUT="$BASE"
-MANIFEST="$OUT/snrna_official_manifest.tsv"   # manifest for snRNA only
+OUT="/mnt/18T/chibao/gliomas/data/upstream/snRNA/dry_run"
+MANIFEST="/mnt/18T/chibao/gliomas/data/output_cell/snRNA/official/dry_run/snrna_official_manifest_dryrun.tsv"   # manifest for snRNA only
 # =========================================================
 
 mkdir -p "$OUT"/{rds,logs,summary,plots}

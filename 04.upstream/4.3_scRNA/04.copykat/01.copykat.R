@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
 
 # Load object
 adult_obj <- readRDS(
-  "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated.rds"
+  "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds"
 )
 
 adult_obj
