@@ -5,6 +5,23 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
+# Config
+# Path where CopyKAT writes its outputs
+copykat_outdir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/copykat/output"
+
+dir.create(copykat_outdir, recursive = TRUE, showWarnings = FALSE)
+
+# Helper: check if CopyKAT has finished for a sample
+is_copykat_done <- function(sample_id, out_dir = copykat_outdir) {
+  # Use the prediction file as the "flag" that the run completed
+  pred_file <- file.path(
+    out_dir,
+    paste0(sample_id, "_copykat_prediction.txt")
+  )
+  file.exists(pred_file)
+}
+
+
 # Load object
 adult_obj <- readRDS(
   "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds"
@@ -45,7 +62,8 @@ run_copykat_for_sample <- function(
   genome = "hg20",             # hg20 in CopyKAT = human hg19 style annotation
   id.type = "S",               # "S" = SYMBOL; "E" = ENSEMBL
   norm_cells_global = NULL,    # vector of colnames(obj) to treat as normal
-  n.cores = 8
+  n.cores = 8,
+  out_dir = copykat_outdir
 ) {
   message("Running CopyKAT for sample: ", sample_id)
 
@@ -67,6 +85,12 @@ run_copykat_for_sample <- function(
   # Convert to matrix (CopyKAT expects a standard matrix)
   rawmat <- as.matrix(counts_s)
 
+  # Ensure output dir exists and temporarily setwd there
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  old_wd <- getwd()
+  on.exit(setwd(old_wd), add = TRUE)
+  setwd(out_dir)
+
   ck_res <- copykat(
     rawmat = rawmat,
     id.type = id.type,
@@ -82,25 +106,41 @@ run_copykat_for_sample <- function(
     n.cores = n.cores
   )
 
+  # Optionally also save the R object
+  saveRDS(
+    ck_res,
+    file = file.path(out_dir, paste0(sample_id, "_copykat_clustering_results.rds"))
+  )
+
   return(ck_res)
 }
+
 
 # Run CopyKat on all samples and collect results
 sample_ids <- sort(unique(adult_obj$sample_uid))
 
+# Filter to only unfinished samples
+to_run <- sample_ids[!vapply(sample_ids, is_copykat_done, logical(1))]
+
+message("Total samples: ", length(sample_ids))
+message("Already completed: ", length(sample_ids) - length(to_run))
+message("To (re)run: ", length(to_run))
+
 copykat_results <- list()
 library(future)
-plan("multisession", workers = 8)
+plan("multisession", workers = 10)
 
-for (sid in sample_ids) {
+for (sid in to_run) {
+  message("==== Processing sample: ", sid, " ====")
   copykat_results[[sid]] <- run_copykat_for_sample(
     obj = adult_obj,
     sample_id = sid,
     sample_col = "sample_uid",
-    genome = "hg20",      # adjust if needed
+    genome = "hg20",
     id.type = "S",
-    norm_cells_global = norm_cells_global,   # or NULL
-    n.cores = 8
+    norm_cells_global = norm_cells_global,
+    n.cores = 8,
+    out_dir = copykat_outdir
   )
 }
 
