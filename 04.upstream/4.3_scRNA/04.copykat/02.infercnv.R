@@ -112,97 +112,56 @@ prepare_infercnv_input_for_sample <- function(
   sample_id,
   sample_col = "sample_uid",
   group_col = "general_cell_type",
-  out_root = infercnv_root
-) {
-  message("Preparing inferCNV input for sample: ", sample_id)
-
-  # subset to sample
-  obj_s <- subset(obj, subset = (!!as.name(sample_col)) == sample_id)
-  message("  Cells in sample: ", ncol(obj_s))
-
-  # counts (genes x cells)
-  counts_s <- GetAssayData(obj_s, assay = "RNA", slot = "counts")
-
-  # create sample-specific folder
-  out_dir <- file.path(out_root, sample_id)
-  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-
-  # 1) write counts matrix
-  counts_file <- file.path(out_dir, paste0(sample_id, ".counts.matrix.txt"))
-  # inferCNV expects genes as rows, cell names as columns, tab-delimited
-  write.table(
-    as.matrix(counts_s),
-    file = counts_file,
-    sep = "\t",
-    quote = FALSE,
-    col.names = NA
-  )
-
-  # 2) write annotations file (cell_id\tgroup)
-  annots <- data.frame(
-    cell_id = colnames(obj_s),
-    group   = obj_s[[group_col]],
-    stringsAsFactors = FALSE
-  )
-  annots_file <- file.path(out_dir, paste0(sample_id, ".annotations.txt"))
-  write.table(
-    annots,
-    file = annots_file,
-    sep = "\t",
-    quote = FALSE,
-    row.names = FALSE,
-    col.names = FALSE
-  )
-
-  return(list(counts_file = counts_file, annots_file = annots_file, out_dir = out_dir))
-}
-
-# 7. Create infercnv objects and run infercnv per sample
-prepare_infercnv_input_for_sample <- function(
-  obj,
-  sample_id,
-  sample_col = "sample_uid",
-  group_col = "general_cell_type",
   out_root = infercnv_root,
-  min_cells_per_group = 2
+  min_cells_per_group = 5 # Increased safety margin
 ) {
   message("Preparing inferCNV input for sample: ", sample_id)
 
-  # 1. Subset Object
+  # 1. Subset to the specific sample
   obj_s <- subset(obj, subset = (!!as.name(sample_col)) == sample_id)
   
-  # [SEURAT V5 FIX] Ensure layers are joined before extraction to prevent empty matrices
-  obj_s <- JoinLayers(obj_s) 
-  
-  message("  Cells in sample: ", ncol(obj_s))
+  # [SEURAT V5] Ensure layers are joined
+  obj_s <- JoinLayers(obj_s)
 
-  # 2. Extract Counts
-  counts_s <- GetAssayData(obj_s, assay = "RNA", layer = "counts") # Use layer='counts' for V5
+  # 2. IDENTIFY AND REMOVE TINY GROUPS
+  # Check group sizes
+  group_counts <- table(obj_s[[group_col]])
+  message("  Original Group Sizes:")
+  print(group_counts)
   
-  # [CRITICAL FIX] Sanitize Cell Names: Replace '-' with '.' 
-  # This ensures the matrix header and annotation file match perfectly
+  # Find groups to keep (must have >= min_cells_per_group)
+  groups_to_keep <- names(group_counts)[group_counts >= min_cells_per_group]
+  groups_to_drop <- names(group_counts)[group_counts < min_cells_per_group]
+  
+  if (length(groups_to_drop) > 0) {
+    message("  !!! DROPPING groups with < ", min_cells_per_group, " cells: ", 
+            paste(groups_to_drop, collapse = ", "))
+    
+    # Subset the object to keep only valid groups
+    # We use the cell names that belong to the valid groups
+    cells_to_keep <- colnames(obj_s)[obj_s[[group_col]][,1] %in% groups_to_keep]
+    obj_s <- subset(obj_s, cells = cells_to_keep)
+  }
+
+  message("  Final Cell Count for Analysis: ", ncol(obj_s))
+  
+  if (ncol(obj_s) < 10) {
+    message("  --> Too few cells remaining. Skipping.")
+    return(NULL)
+  }
+
+  # 3. Extract Counts & SANITIZE NAMES
+  counts_s <- GetAssayData(obj_s, assay = "RNA", layer = "counts")
+  
+  # Replace hyphens with dots to prevent mismatch errors
   clean_names <- gsub("-", ".", colnames(counts_s))
   colnames(counts_s) <- clean_names
   
+  # 4. Create Output Directory
   out_dir <- file.path(out_root, sample_id)
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-  # 3. Prepare Annotations with Sanitized Names
-  # Note: We use clean_names here so it matches the matrix exactly
-  annots <- data.frame(
-    cell_id = clean_names, 
-    group   = obj_s[[group_col]],
-    stringsAsFactors = FALSE
-  )
-
-  # Collapse small groups
-  grp_tab <- table(annots$group)
-  small_groups <- names(grp_tab)[grp_tab < min_cells_per_group]
-  if (length(small_groups) > 0) {
-    annots$group[annots$group %in% small_groups] <- "OtherSmall"
-  }
-
-  # 4. Write Output
+  # 5. Write Counts Matrix
   counts_file <- file.path(out_dir, paste0(sample_id, ".counts.matrix.txt"))
   write.table(
     as.matrix(counts_s),
@@ -212,6 +171,13 @@ prepare_infercnv_input_for_sample <- function(
     col.names = NA
   )
 
+  # 6. Write Annotations
+  annots <- data.frame(
+    cell_id = clean_names,
+    group   = obj_s[[group_col]][,1], # Ensure we get the vector
+    stringsAsFactors = FALSE
+  )
+  
   annots_file <- file.path(out_dir, paste0(sample_id, ".annotations.txt"))
   write.table(
     annots,
@@ -232,9 +198,10 @@ run_infercnv_for_sample <- function(
   gene_order_file,
   normal_types,
   out_dir,
-  min_ref_cells = 10,       # Global minimum total reference cells
+  min_ref_cells = 10,
   min_genes = 50,
-  safe_min_group_size = 5  # <--- NEW: Minimum cells required per SPECIFIC group
+  safe_min_group_size = 5,
+  num_threads = 10  # <--- CHANGED TO 10 FOR STABILITY
 ) {
   message("Processing sample: ", sample_id)
 
@@ -248,16 +215,13 @@ run_infercnv_for_sample <- function(
   message("  Reference group sizes in annotation:")
   print(ref_counts)
 
-  # 3. STRICT filtering: Only keep groups that have enough cells to survive QC
-  #    We require 'safe_min_group_size' (e.g., 5 or 10) to avoid dropping to 1 cell
+  # 3. Filter small groups
   valid_ref_groups <- names(ref_counts)[ref_counts >= safe_min_group_size]
-  
   total_valid_ref <- sum(ref_counts[valid_ref_groups])
+  
   message("  Valid reference groups (>= ", safe_min_group_size, " cells): ", 
           paste(valid_ref_groups, collapse = ", "))
-  message("  Total valid reference cells: ", total_valid_ref)
 
-  # 4. Check against global minimum requirement
   if (length(valid_ref_groups) == 0) {
     message("  --> No valid reference groups large enough. Skipping sample.")
     return(NULL)
@@ -269,17 +233,16 @@ run_infercnv_for_sample <- function(
     return(NULL)
   }
 
-  # 5. Create Object with ONLY the safe groups
+  # 4. Create Object
   infercnv_obj <- CreateInfercnvObject(
     raw_counts_matrix = counts_file,
     annotations_file  = annots_file,
     delim             = "\t",
     gene_order_file   = gene_order_file,
-    ref_group_names   = valid_ref_groups, # Only pass the large groups
+    ref_group_names   = valid_ref_groups,
     chr_exclude       = c("chrX", "chrY", "chrM")
   )
 
-  # 6. Quick check on matrix dimensions
   expr <- infercnv_obj@expr.data
   if (is.null(dim(expr)) || any(dim(expr) < 2)) {
     message("  --> Matrix collapsed to vector or empty. Skipping.")
@@ -287,9 +250,11 @@ run_infercnv_for_sample <- function(
   }
 
   message("Running inferCNV for sample: ", sample_id)
+  message("Using num_threads: ", num_threads)
 
-  # 7. Run inferCNV
-  # Note: If you still get errors, try setting HMM=FALSE
+  # 5. Run inferCNV
+  # We use the passed 'num_threads' here.
+  # If this still fails, you can set HMM=FALSE, but try threads=1 first.
   infercnv_obj <- infercnv::run(
     infercnv_obj,
     cutoff            = 0.1,
@@ -297,7 +262,7 @@ run_infercnv_for_sample <- function(
     cluster_by_groups = TRUE,
     denoise           = TRUE,
     HMM               = TRUE,
-    num_threads       = 4
+    num_threads       = num_threads 
   )
 
   return(infercnv_obj)
@@ -310,27 +275,34 @@ infercnv_results <- list()
 # And run the loop:
 
 for (sid in sample_ids) {
+  message("------------------------------------------------------")
   message("Processing sample: ", sid)
 
   out_dir_sid  <- file.path(infercnv_root, sid)
   done_file    <- file.path(out_dir_sid, "infercnv_out", "infercnv.observation_groupings.txt")
 
   if (file.exists(done_file)) {
-    message("  --> inferCNV output already exists for ", sid, ". Skipping.")
+    message("  --> inferCNV output already exists. Skipping.")
     next
   }
 
-  # Call the UPDATED preparation function
+  # 1. Prepare Files (Removes 1-cell groups automatically)
   prep <- prepare_infercnv_input_for_sample(
     obj = adult_obj,
     sample_id = sid,
     sample_col = "sample_uid",
     group_col = "general_cell_type",
     out_root = infercnv_root,
-    min_cells_per_group = 2
+    min_cells_per_group = 5  # Strict filter
   )
 
-  # Call the run function
+  # If prep returns NULL (too few cells or all groups dropped), skip
+  if (is.null(prep)) {
+    message("  --> Skipping execution for ", sid)
+    next
+  }
+
+  # 2. Run inferCNV
   infercnv_results[[sid]] <- run_infercnv_for_sample(
     sample_id       = sid,
     counts_file     = prep$counts_file,
@@ -338,7 +310,8 @@ for (sid in sample_ids) {
     gene_order_file = gene_order_file,
     normal_types    = normal_types,
     out_dir         = prep$out_dir,
-    safe_min_group_size = 10  # Ensure we have robust reference groups
+    num_threads     = 10,  # Use 10 threads for stability
+    safe_min_group_size = 5 # Matches the prep filter
   )
 }
 
