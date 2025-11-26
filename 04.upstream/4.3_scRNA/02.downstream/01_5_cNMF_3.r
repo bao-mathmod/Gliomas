@@ -31,7 +31,7 @@ obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_
 # print(table(obj$general_cell_type))
 # ------------------------------------------------------------------------------
 # 2. Config Paths
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
 run_name <- "Glioma_Adult_Myeloid"
 k_val <- 14
 plot_dir <- file.path(cnmf_dir, "plot.png")
@@ -88,7 +88,7 @@ for (i in 1:14) {
 }
 
 # Save the annotated object
-saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_cNMF.rds")
+saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_clean_cNMF.rds")
 
 #######
 # 1. Define your cNMF program columns (assuming you added them to metadata)
@@ -104,6 +104,6 @@ p1 <- DotPlot(obj, features = cnmf_features, group.by = "SCT_snn_res.0.08") +
     scale_color_gradientn(colours = c("white", "blue", "red")) +
     ggtitle("Mapping cNMF Programs to Cell Types") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10)) +
-    theme(plot.margin = unit(c(-2, -2.5, -0.5, -0.09), "cm"))
+    theme(plot.margin = unit(c(-1, -2.5, -0.5, -0.09), "cm"))
 
 ggsave(filename = plot_dir, plot = p1)

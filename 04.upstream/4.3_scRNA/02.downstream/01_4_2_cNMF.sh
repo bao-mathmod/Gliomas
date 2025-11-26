@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
+DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
 RUN_NAME="Glioma_Adult_Myeloid"
 CHOSEN_K=14 
 

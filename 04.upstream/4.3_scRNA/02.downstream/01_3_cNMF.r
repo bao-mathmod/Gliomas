@@ -44,7 +44,7 @@ variable_genes <- VariableFeatures(obj)
 
 # 4. Define Output Directory
 # Create a dedicated folder for cNMF to keep things clean
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
 #if (!dir.exists(cnmf_dir)) { dir.create(cnmf_dir, recursive = TRUE) }
 
 # 5. Export Data for cNMF
@@ -75,7 +75,7 @@ write.table(genes_df, file = file.path(cnmf_dir, "genes.tsv"),
             quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 
 # Check:
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
 
 # Look at file headers
 system(paste("head -n 5", file.path(cnmf_dir, "matrix.mtx")))

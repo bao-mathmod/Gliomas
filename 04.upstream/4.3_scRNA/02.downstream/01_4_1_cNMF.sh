@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ======================= CONFIG ==========================
-DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
+DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
 RUN_NAME="Glioma_Adult_Myeloid"
 K_RANGE="2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18" 
-WORKERS=60 
+WORKERS=70 
 # =========================================================
 
 # Start global timer
