@@ -5,27 +5,28 @@ library(data.table)
 
 # 1. Load your Final Object
 # (Update path if needed)
-obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
-
+# obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
+# obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_final_integrated.rds')
+obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_clean.rds')
 # Remove specified cell type annotations from the Seurat object
-remove_types <- c("Melanoma_Metas", "Lung_Metas")
-message("Removing annotations: ", paste(remove_types, collapse = ", "))
+# remove_types <- c("Melanoma_Metas", "Lung_Metas")
+# message("Removing annotations: ", paste(remove_types, collapse = ", "))
 
-message("Counts before removal:")
-print(table(obj$general_cell_type))
+# message("Counts before removal:")
+# print(table(obj$general_cell_type))
 
-obj <- subset(obj, subset = !(general_cell_type %in% remove_types))
+# obj <- subset(obj, subset = !(general_cell_type %in% remove_types))
 
-# Drop unused factor levels in metadata
-# obj@meta.data$general_cell_type <- droplevels(obj@meta.data$general_cell_type)
+# # Drop unused factor levels in metadata
+# # obj@meta.data$general_cell_type <- droplevels(obj@meta.data$general_cell_type)
 
-# Ensure Idents reflect the current metadata column (optional but helpful for downstream code)
-if ("general_cell_type" %in% colnames(obj@meta.data)) {
-    Idents(obj) <- "general_cell_type"
-}
+# # Ensure Idents reflect the current metadata column (optional but helpful for downstream code)
+# if ("general_cell_type" %in% colnames(obj@meta.data)) {
+#     Idents(obj) <- "general_cell_type"
+# }
 
-message("Removal complete. Counts after removal:")
-print(table(obj$general_cell_type))
+# message("Removal complete. Counts after removal:")
+# print(table(obj$general_cell_type))
 
 # 2. Handle Seurat V5 Layers (CRITICAL STEP)
 # cNMF needs a single matrix, not split layers. We join them back together.
@@ -43,7 +44,7 @@ variable_genes <- VariableFeatures(obj)
 
 # 4. Define Output Directory
 # Create a dedicated folder for cNMF to keep things clean
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
 #if (!dir.exists(cnmf_dir)) { dir.create(cnmf_dir, recursive = TRUE) }
 
 # 5. Export Data for cNMF
@@ -74,7 +75,7 @@ write.table(genes_df, file = file.path(cnmf_dir, "genes.tsv"),
             quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 
 # Check:
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
 
 # Look at file headers
 system(paste("head -n 5", file.path(cnmf_dir, "matrix.mtx")))

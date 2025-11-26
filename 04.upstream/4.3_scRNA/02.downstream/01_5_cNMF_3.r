@@ -7,32 +7,33 @@ library(ggplot2)
 library(dplyr)
 
 # 1. Load Seurat Object (if not already loaded)
-obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
+# obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
+# obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_final_integrated.rds')
+obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_clean.rds')
+# # Remove specified cell type annotations from the Seurat object
+# remove_types <- c("Melanoma_Metas", "Lung_Metas")
+# message("Removing annotations: ", paste(remove_types, collapse = ", "))
 
-# Remove specified cell type annotations from the Seurat object
-remove_types <- c("Melanoma_Metas", "Lung_Metas")
-message("Removing annotations: ", paste(remove_types, collapse = ", "))
+# message("Counts before removal:")
+# print(table(obj$general_cell_type))
 
-message("Counts before removal:")
-print(table(obj$general_cell_type))
+# obj <- subset(obj, subset = !(general_cell_type %in% remove_types))
 
-obj <- subset(obj, subset = !(general_cell_type %in% remove_types))
+# # Drop unused factor levels in metadata
+# # obj@meta.data$general_cell_type <- droplevels(obj@meta.data$general_cell_type)
 
-# Drop unused factor levels in metadata
-# obj@meta.data$general_cell_type <- droplevels(obj@meta.data$general_cell_type)
+# # Ensure Idents reflect the current metadata column (optional but helpful for downstream code)
+# if ("general_cell_type" %in% colnames(obj@meta.data)) {
+#     Idents(obj) <- "general_cell_type"
+# }
 
-# Ensure Idents reflect the current metadata column (optional but helpful for downstream code)
-if ("general_cell_type" %in% colnames(obj@meta.data)) {
-    Idents(obj) <- "general_cell_type"
-}
-
-message("Removal complete. Counts after removal:")
-print(table(obj$general_cell_type))
+# message("Removal complete. Counts after removal:")
+# print(table(obj$general_cell_type))
 # ------------------------------------------------------------------------------
 # 2. Config Paths
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid"
 run_name <- "Glioma_Adult_Myeloid"
-k_val <- 18
+k_val <- 14
 plot_dir <- file.path(cnmf_dir, "plot.png")
 
 # ------------------------------------------------------------------------------
@@ -82,24 +83,27 @@ print_program_genes <- function(prog_num) {
 }
 
 # Print markers for all 18 programs
-for (i in 1:18) {
+for (i in 1:14) {
   print_program_genes(i)
 }
 
 # Save the annotated object
-saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_cNMF.rds")
+saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_cNMF.rds")
 
 #######
 # 1. Define your cNMF program columns (assuming you added them to metadata)
+# Check to see the name of the cNMF before assign
+grep("cNMF", colnames(obj@meta.data), value = TRUE)
+# Assign
 cnmf_features <- paste0("cNMF_X", 1:18)
 
 # 2. DotPlot Visualization
 # This shows the average usage of each program in each cell type
-p1 <- DotPlot(obj, features = cnmf_features, group.by = "general_cell_type") + 
+p1 <- DotPlot(obj, features = cnmf_features, group.by = "SCT_snn_res.0.08") + 
     RotatedAxis() +
     scale_color_gradientn(colours = c("white", "blue", "red")) +
     ggtitle("Mapping cNMF Programs to Cell Types") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10)) +
-    theme(plot.margin = unit(c(-1, -2.5, -0.5, -1.5), "cm"))
+    theme(plot.margin = unit(c(-2, -2.5, -0.5, -0.09), "cm"))
 
 ggsave(filename = plot_dir, plot = p1)

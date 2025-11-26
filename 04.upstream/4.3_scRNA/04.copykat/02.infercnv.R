@@ -201,7 +201,7 @@ run_infercnv_for_sample <- function(
   min_ref_cells = 10,
   min_genes = 50,
   safe_min_group_size = 5,
-  num_threads = 10  # <--- CHANGED TO 10 FOR STABILITY
+  num_threads = 60  # <--- CHANGED TO 10 FOR STABILITY
 ) {
   message("Processing sample: ", sample_id)
 
@@ -310,7 +310,7 @@ for (sid in sample_ids) {
     gene_order_file = gene_order_file,
     normal_types    = normal_types,
     out_dir         = prep$out_dir,
-    num_threads     = 10,  # Use 10 threads for stability
+    num_threads     = 60,  # Use 10 threads for stability
     safe_min_group_size = 5 # Matches the prep filter
   )
 }
