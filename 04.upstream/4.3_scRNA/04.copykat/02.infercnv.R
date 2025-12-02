@@ -431,7 +431,7 @@ infercnv_obj <- infercnv::run(
   cluster_by_groups = TRUE,
   denoise = TRUE,
   HMM = TRUE,
-  num_threads = 50,
+  num_threads = 10,
   
   # === KEY SETTINGS ===
   #tumor_subcluster_partition_method = "random_trees", # Avoids the SNN graph error
@@ -467,7 +467,7 @@ infercnv_obj <- infercnv::run(
   cluster_by_groups = TRUE,
   denoise = TRUE,
   HMM = TRUE,
-  num_threads = 50,
+  num_threads = 10,
   
   # You can keep 'random_trees' here, but since Step 17 (Leiden) is already 
   # on disk, it will likely continue using the Leiden clusters it already found.
@@ -540,7 +540,7 @@ options(future.globals.maxSize = 100 * 1024^3)
 
 # Define Paths
 seurat_path   <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds"
-infercnv_root <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infercnv"
+infercnv_root <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infercnv_3"
 gtf_file      <- "/mnt/18T/chibao/gliomas/book/ref/gencode.v38.annotation.gtf"
 final_out_path <- file.path(infercnv_root, "adult_obj_with_cnv_final.rds")
 
@@ -552,8 +552,35 @@ message("Loading Seurat Object...")
 adult_obj <- readRDS(seurat_path)
 DefaultAssay(adult_obj) <- "RNA"
 
+# Remove 
+# Remove specified cell type annotations from the Seurat object
+remove_types <- c("Melanoma_Metas", "Lung_Metas")
+message("Removing annotations: ", paste(remove_types, collapse = ", "))
+
+message("Counts before removal:")
+print(table(adult_obj$general_cell_type))
+
+adult_obj <- subset(adult_obj, subset = !(general_cell_type %in% remove_types))
+
+# Drop unused factor levels in metadata
+# obj@meta.data$general_cell_type <- droplevels(obj@meta.data$general_cell_type)
+
+# Ensure Idents reflect the current metadata column (optional but helpful for downstream code)
+if ("general_cell_type" %in% colnames(adult_obj@meta.data)) {
+    Idents(adult_obj) <- "general_cell_type"
+}
+
+message("Removal complete. Counts after removal:")
+print(table(adult_obj$general_cell_type))
+
+# Check cell types
+adult_obj$general_cell_type |> unique()
+
+# Save RDS
+saveRDS(adult_obj, '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v3.rds')
+
 # Define Parameters
-normal_types <- c("Myeloid", "TILs", 'B_cells', 'Stromal/Epithelial')
+normal_types <- c("Myeloid", "TILs", 'B_cell', 'Stromal/Endothelial')
 sample_ids   <- sort(unique(adult_obj$sample_uid))
 
 # ==============================================================================
@@ -621,7 +648,7 @@ prepare_infercnv_input_for_sample <- function(obj, sample_id, group_col = "gener
 }
 
 # --- Helper Function 2: Run InferCNV ---
-run_infercnv_for_sample <- function(sid, prep, gene_file, refs, min_ref = 10, threads = 60) {
+run_infercnv_for_sample <- function(sid, prep, gene_file, refs, min_ref = 10, threads = 40) {
   annots <- read.table(prep$annots_file, header = FALSE, sep = "\t")
   colnames(annots) <- c("cell", "group")
   
