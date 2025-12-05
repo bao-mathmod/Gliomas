@@ -577,7 +577,7 @@ print(table(adult_obj$general_cell_type))
 adult_obj$general_cell_type |> unique()
 
 # Save RDS
-saveRDS(adult_obj, '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v3.rds')
+# saveRDS(adult_obj, '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v3.rds')
 
 # Define Parameters
 normal_types <- c("Myeloid", "TILs", 'B_cell', 'Stromal/Endothelial')
@@ -648,7 +648,7 @@ prepare_infercnv_input_for_sample <- function(obj, sample_id, group_col = "gener
 }
 
 # --- Helper Function 2: Run InferCNV ---
-run_infercnv_for_sample <- function(sid, prep, gene_file, refs, min_ref = 10, threads = 40) {
+run_infercnv_for_sample <- function(sid, prep, gene_file, refs, min_ref = 10, threads = 50) {
   annots <- read.table(prep$annots_file, header = FALSE, sep = "\t")
   colnames(annots) <- c("cell", "group")
   
