@@ -373,10 +373,10 @@ library(pheatmap)
 library(ComplexHeatmap)
 library(future)
 
-options(future.globals.maxSize = 460 * 1024^2) # 80 GB RAM limit for parallel processes
+options(future.globals.maxSize = 350 * 1024^3) # 80 GB RAM limit for parallel processes
 
 # Load the seurat object
-os_ec_subset <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
+os_ec_subset <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v3.rds")
 
 # Set the default assay to "RNA" for raw counts
 DefaultAssay(os_ec_subset) <- "RNA"
@@ -397,7 +397,7 @@ cell_anno_df <- data.frame(
 )
 
 # Define reference cells (normal cells)
-reference_cells <- rownames(cell_anno_df)[cell_anno_df$cell_type %in% c("Myeloid", 'TILs')]
+reference_cells <- rownames(cell_anno_df)[cell_anno_df$cell_type %in% c("Myeloid", 'TILs', 'B_cell', 'Stromal/Endothelial')]
 
 # > reference_cells |> length()
 # [1] 4637
@@ -411,7 +411,7 @@ reference_cells <- rownames(cell_anno_df)[cell_anno_df$cell_type %in% c("Myeloid
 infercnv_root <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infercnv"
 gene_order_file <- file.path(infercnv_root, "gene_order_hg38_from_gencode.txt")
 # gene_order_file <- '/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infercnv_2/gene_ordering_hg38_genecode_v27.txt'
-base_out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infercnv_2/"
+base_out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infer_test/"
 
 # Create inferCNV object
 infercnv_obj <- CreateInfercnvObject(
@@ -419,7 +419,7 @@ infercnv_obj <- CreateInfercnvObject(
   annotations_file = cell_anno_df,
   delim = "\t",
   gene_order_file = gene_order_file,  # Gene positions file
-  ref_group_names = c('Myeloid', 'TILs')  # Reference cell type
+  ref_group_names = c('Myeloid', 'TILs', 'B_cell', 'Stromal/Endothelial')  # Reference cell type
 )
 
 options(scipen = 100)
@@ -431,7 +431,7 @@ infercnv_obj <- infercnv::run(
   cluster_by_groups = TRUE,
   denoise = TRUE,
   HMM = TRUE,
-  num_threads = 10,
+  num_threads = 50,
   
   # === KEY SETTINGS ===
   #tumor_subcluster_partition_method = "random_trees", # Avoids the SNN graph error
