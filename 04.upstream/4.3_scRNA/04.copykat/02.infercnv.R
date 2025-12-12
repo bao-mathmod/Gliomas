@@ -522,6 +522,116 @@ infercnv_obj <- infercnv::run(
 saveRDS(infercnv_obj, file = "/mnt/d12b/SC_BONE_RAW/data/out_infercnv_os_ec_hmm_i3/infercnv_obj/infercnv_obj.rds")
 
 
+# ==============================================================================
+# MANUAL HEATMAP GENERATION (Post-Hoc from Step 17)
+# ==============================================================================
+
+library(infercnv)
+
+# --- 1. CONFIGURATION ---
+# The exact path where your files are located
+base_out_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/infer_test/"
+
+# Target number of cells for the plot. 
+# 50,000 is the "Safe Zone" for R graphics. It is high resolution but won't crash RAM.
+MAX_CELLS_TO_PLOT <- 200000 
+
+# --- 2. LOAD THE OBJECT ---
+# We look specifically for the Step 17 object you listed
+step17_obj_name <- "17_HMM_predHMMi6.leiden.hmm_mode-subclusters.infercnv_obj"
+obj_path <- file.path(base_out_dir, step17_obj_name)
+
+if (!file.exists(obj_path)) {
+  stop("Could not find the file: ", obj_path)
+}
+
+message("Loading Step 17 inferCNV object... (This depends on disk speed)")
+infercnv_obj <- readRDS(obj_path)
+
+# --- 3. DOWNSAMPLING FUNCTION (With Crash Fix) ---
+# This function solves the "Subscript out of bounds" error by clearing old clustering data
+downsample_infercnv_safe <- function(object, max_cells) {
+  
+  total_cells <- ncol(object@expr.data)
+  message(paste("Current object has:", total_cells, "cells"))
+  
+  if (total_cells <= max_cells) {
+    message("No downsampling needed.")
+    return(object)
+  }
+  
+  message(sprintf("Downsampling to %d cells to prevent memory crash...", max_cells))
+  
+  # A. Select random indices to keep
+  set.seed(123) 
+  keep_indices <- sort(sample(seq_len(total_cells), max_cells))
+  
+  # B. Subset the Expression Matrix
+  # drop=FALSE ensures it stays a matrix even if it gets small
+  object@expr.data <- object@expr.data[, keep_indices, drop = FALSE]
+  
+  # C. Create a Map (Old Index -> New Index)
+  # This tells us where the old cells moved to in the new smaller matrix
+  index_map <- integer(total_cells)
+  index_map[keep_indices] <- seq_along(keep_indices)
+  
+  # D. Update the Group Lists (References & Observations)
+  update_group_indices <- function(group_list) {
+    lapply(group_list, function(old_indices) {
+      new_indices <- index_map[old_indices]
+      # Keep only valid indices (remove cells that were dropped)
+      new_indices <- new_indices[new_indices > 0]
+      return(new_indices)
+    })
+  }
+  
+  object@reference_grouped_cell_indices <- update_group_indices(object@reference_grouped_cell_indices)
+  object@observation_grouped_cell_indices <- update_group_indices(object@observation_grouped_cell_indices)
+  
+  # Remove empty groups
+  object@reference_grouped_cell_indices <- Filter(length, object@reference_grouped_cell_indices)
+  object@observation_grouped_cell_indices <- Filter(length, object@observation_grouped_cell_indices)
+  
+  # E. CRITICAL FIX: Delete the old "tumor_subclusters" 
+  # This slot contains the names of the 300k+ cells. If we keep it, 
+  # plot_cnv will try to look them up in our 30k matrix and crash.
+  # Deleting it forces plot_cnv to re-calculate simple clusters for the plot.
+  object@tumor_subclusters <- NULL 
+  
+  return(object)
+}
+
+# --- 4. EXECUTE DOWNSAMPLING ---
+# This creates a new, smaller object just for plotting
+obj_plot <- downsample_infercnv_safe(infercnv_obj, MAX_CELLS_TO_PLOT)
+
+# --- 5. GENERATE THE HEATMAP ---
+message("Generating Heatmap... (Check output folder for .png)")
+
+infercnv::plot_cnv(
+  obj_plot,
+  out_dir = base_out_dir,
+  output_filename = "infercnv_step17_manual_heatmap",
+  
+  # Visual Settings
+  cluster_by_groups = TRUE,    # Group cells by their type (Myeloid, Tumor, etc.)
+  cluster_references = TRUE,   # Cluster the normal cells too
+  plot_chr_scale = TRUE,       # Width of chromosome blocks matches real biology
+  
+  # Output Format
+  output_format = "png",
+  png_res = 300,               # High quality
+  dynamic_resize = 0,          # Standard layout
+  
+  # Performance Settings
+  useRaster = TRUE,            # REQUIRED: Prevents memory error by drawing pixels, not shapes
+  write_expr_matrix = FALSE,   # We don't need the text file again
+  
+  title = "InferCNV Step 17 (HMM Prediction)"
+)
+
+message("Success! Image saved to: ", file.path(base_out_dir, "infercnv_step17_manual_heatmap_200k.png"))
+
 ####### Official ########
 # ==============================================================================
 # PART 1: SETUP & LIBRARIES
