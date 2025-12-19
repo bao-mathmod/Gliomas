@@ -54,8 +54,8 @@ for (r in c("pca","harmony","umap","umap.harmony")) {
 tils
 
 # Re-create SCT assay for tils
-plan("multicore", workers = 20)
-options(future.globals.maxSize = 400 * 1024^3) # 450 GB
+plan("multicore", workers = 1)
+options(future.globals.maxSize = 350 * 1024^3) # 450 GB
 options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
