@@ -14,10 +14,10 @@ obj$myeloid_subtype |> unique()
 # Change assay
 DefaultAssay(obj) <- 'SCT'
 
-# Join Layers (if needed)
-obj <- JoinLayers(obj)
-# backup <- JoinLayers(backup)
-obj
+# # Join Layers (if needed)
+# obj <- JoinLayers(obj)
+# # backup <- JoinLayers(backup)
+# obj
 
 # Prepare for cell chat 
 data.input <- obj[["SCT"]]$data
@@ -25,9 +25,9 @@ labels <- obj$myeloid_subtype
 meta <- data.frame(labels = labels, row.names = names(labels))
 
 # Create cellchat obj
-cellchat_2 <- createCellChat(object = data.input, meta = meta, group.by = "labels")
+cellchat <- createCellChat(object = data.input, meta = meta, group.by = "labels")
 
-cellchat <- createCellChat(object = obj, group.by = "myeloid_subtype", assay = "SCT")
+# cellchat <- createCellChat(object = obj, group.by = "myeloid_subtype", assay = "SCT")
 
 # Call database 
 CellChatDB <- CellChatDB.human
@@ -46,17 +46,17 @@ cellchat@DB <- CellChatDB.use
 cellchat <- subsetData(cellchat)
 
 library(future)
-plan("multisession", workers = 10)
-options(future.globals.maxSize = 300 * 1024^3)  # 20 GB in bytes
+plan("multisession", workers = 4) # multicore, sequential
+options(future.globals.maxSize = 450 * 1024^3)  
 cellchat <- identifyOverExpressedGenes(cellchat)
 cellchat <- identifyOverExpressedInteractions(cellchat)
 
 # Time estimation
-execution.time = Sys.time() - ptm
-print(as.numeric(execution.time, units = "secs"))
+# execution.time = Sys.time() - ptm
+# print(as.numeric(execution.time, units = "secs"))
 
 # Compute the communication probability
-ptm = Sys.time()
+# ptm = Sys.time()
 cellchat <- computeCommunProb(cellchat, type = "triMean")
 
 # Compute infer cellular communication network
@@ -71,5 +71,6 @@ cellchat <- computeCommunProbPathway(cellchat)
 
 # Aggregate the cell-cell communication network
 cellchat <- aggregateNet(cellchat)
-execution.time = Sys.time() - ptm
-print(as.numeric(execution.time, units = "secs"))
+# execution.time = Sys.time() - ptm
+# print(as.numeric(execution.time, units = "secs"))
+saveRDS(cellchat, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cellchat/obj_cellchat_done.rds")
