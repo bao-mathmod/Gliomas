@@ -73,4 +73,4 @@ cellchat <- computeCommunProbPathway(cellchat)
 cellchat <- aggregateNet(cellchat)
 # execution.time = Sys.time() - ptm
 # print(as.numeric(execution.time, units = "secs"))
-saveRDS(cellchat, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cellchat/obj_cellchat_done.rds")
+saveRDS(cellchat, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cellchat/obj_cellchat_done_v2.rds")
