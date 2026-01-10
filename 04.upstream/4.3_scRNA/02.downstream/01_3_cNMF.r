@@ -7,7 +7,8 @@ library(data.table)
 # (Update path if needed)
 # obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
 # obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_final_integrated.rds')
-obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_clean.rds')
+obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/raw/myeloid_clean.rds')
+backup <- obj
 # Remove specified cell type annotations from the Seurat object
 # remove_types <- c("Melanoma_Metas", "Lung_Metas")
 # message("Removing annotations: ", paste(remove_types, collapse = ", "))
@@ -44,8 +45,8 @@ variable_genes <- VariableFeatures(obj)
 
 # 4. Define Output Directory
 # Create a dedicated folder for cNMF to keep things clean
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
-#if (!dir.exists(cnmf_dir)) { dir.create(cnmf_dir, recursive = TRUE) }
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2"
+if (!dir.exists(cnmf_dir)) { dir.create(cnmf_dir, recursive = TRUE) }
 
 # 5. Export Data for cNMF
 # We export the RAW counts (sparse matrix) and the list of variable genes.
@@ -75,7 +76,7 @@ write.table(genes_df, file = file.path(cnmf_dir, "genes.tsv"),
             quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 
 # Check:
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2"
 
 # Look at file headers
 system(paste("head -n 5", file.path(cnmf_dir, "matrix.mtx")))

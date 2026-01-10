@@ -9,7 +9,8 @@ library(dplyr)
 # 1. Load Seurat Object (if not already loaded)
 # obj <- readRDS("/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated_v2.rds")
 # obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_final_integrated.rds')
-obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/myeloid_clean.rds')
+obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/raw/myeloid_clean.rds')
+backup <- obj
 # # Remove specified cell type annotations from the Seurat object
 # remove_types <- c("Melanoma_Metas", "Lung_Metas")
 # message("Removing annotations: ", paste(remove_types, collapse = ", "))
@@ -31,9 +32,9 @@ obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_
 # print(table(obj$general_cell_type))
 # ------------------------------------------------------------------------------
 # 2. Config Paths
-cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
+cnmf_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2"
 run_name <- "Glioma_Adult_Myeloid"
-k_val <- 14
+k_val <- 8
 plot_dir <- file.path(cnmf_dir, "plot.png")
 
 # ------------------------------------------------------------------------------
@@ -82,20 +83,20 @@ print_program_genes <- function(prog_num) {
   cat(paste0("Program ", prog_num, ": ", paste(top_genes, collapse=", "), "\n"))
 }
 
-# Print markers for all 18 programs
-for (i in 1:14) {
+# Print markers for all X programs
+for (i in 1:8) {
   print_program_genes(i)
 }
 
 # Save the annotated object
 saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_clean_cNMF.rds")
-
+saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2/harmony_annotated_myeloid_clean_cNMF.rds")
 #######
 # 1. Define your cNMF program columns (assuming you added them to metadata)
 # Check to see the name of the cNMF before assign
 grep("cNMF", colnames(obj@meta.data), value = TRUE)
 # Assign
-cnmf_features <- paste0("cNMF_X", 1:18)
+cnmf_features <- paste0("cNMF_X", 1:8)
 
 # 2. DotPlot Visualization
 # This shows the average usage of each program in each cell type

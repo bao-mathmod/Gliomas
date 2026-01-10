@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ======================= CONFIG ==========================
-DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean"
+DATA_DIR="/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2"
 RUN_NAME="Glioma_Adult_Myeloid"
-K_RANGE="2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18" 
+K_RANGE="2 3 4 5 6 7 8 9 10 11 12 13 14" # Can use up to 18
 WORKERS=70 
 # =========================================================
 
