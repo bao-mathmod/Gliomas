@@ -89,7 +89,7 @@ for (i in 1:8) {
 }
 
 # Save the annotated object
-saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_clean_cNMF.rds")
+# saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_annotated_myeloid_clean_cNMF.rds")
 saveRDS(obj, "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/cNMF_myeloid_clean_v2/harmony_annotated_myeloid_clean_cNMF.rds")
 #######
 # 1. Define your cNMF program columns (assuming you added them to metadata)
