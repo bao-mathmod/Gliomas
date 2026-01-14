@@ -1,7 +1,7 @@
 base_dir <- "/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/annotated"
-in_rds   <- file.path(base_dir, "myeloid_clean_annotated.rds")
+in_rds   <- file.path(base_dir, "myeloid_clean_annotated_v2.rds")
 
-out_dir  <- file.path('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/GSVA')
+out_dir  <- file.path('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/subclusters/myeloid/GSVA_2')
 # dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path(out_dir, "plots"), showWarnings = FALSE)
 dir.create(file.path(out_dir, "tables"), showWarnings = FALSE)
@@ -79,7 +79,7 @@ keep_kw <- c(
   "INTERFERON", "ANTIGEN", "MHC", "TOLL", "NF_KB", "CYTOKINE", "CHEMOKINE",
   "COMPLEMENT", "PHAGOCYT", "NEUTROPHIL", "MONOCYTE", "MACROPHAGE",
   "HYPOX", "GLYCOLYSIS", "OXIDATIVE", "RESPIRATORY",
-  "APOPTOS", "ANGIOGEN", "VEGF"
+  "APOPTOS", "ANGIOGEN", "VEGF", "CHEMOTAXIS"
 )
 
 c2_df2 <- c2_df %>%
@@ -284,12 +284,113 @@ keep_kw <- c(
   "NF_KB", "NFKB", "CYTOKINE", "CHEMOKINE",
   "COMPLEMENT", "PHAGOCYT", "NEUTROPHIL", "MONOCYTE", "MACROPHAGE",
   "HYPOX", "GLYCOLYSIS", "OXIDATIVE", "RESPIRATORY",
-  "APOPTOS", "ANGIOGEN", "VEGF"
+  "APOPTOS", "ANGIOGEN", "VEGF", "CHEMOTAX", "LEUKOCYTE_MIGRATION", "CHEMOTAXIS"
 )
+
+# keep_kw <- c(
+#   # ---- Core myeloid / innate immune framing ----
+#   "INNATE", "MYELOID", "LEUKOCYTE", "GRANULOCYTE",
+#   "MACROPHAGE", "MONOCYTE", "NEUTROPHIL",
+
+#   # ---- Phagocytosis, lysosome/endosome, opsonization, Fc receptors ----
+#   "PHAGOCYT", "PHAGOSOM", "LYSOSOM", "ENDOSOM", "EFFEROCYT", "OPSON",
+#   "FCGR", "FCER", "IMMUNE_COMPLEX",
+
+#   # ---- Complement / C1Q axis ----
+#   "COMPLEMENT", "C1Q", "C3", "TERMINAL_PATHWAY",
+
+#   # ---- Antigen presentation / MHC-II (your CD74/HLA program) ----
+#   "ANTIGEN", "ANTIGEN_PRESENTATION", "MHC", "HLA",
+#   "MHC_CLASS_II",
+#   "PEPTIDE_LOADING", "CROSS_PRESENT", "TAP", "IMMUNOPROTEASOME", "CD74", "TOLL"
+
+#   # ---- Inflammatory signaling (VCAN/S100A9-like biology maps here) ----
+#   "TOLL", "TLR", "MYD88", "TRAF", "IRAK",
+#   "NFKB", "NF_KB", "KAPPA_B",
+#   "TNF", "INTERLEUKIN", "IL_1", "IL_6", "CYTOKINE",
+#   "INFLAMMASOME", "NLRP", "PYROPTOS",
+
+#   # ---- Interferon program ----
+#   "INTERFERON", "JAK_STAT", "IRF", "ANTIVIRAL", "ISG",
+
+#   # ---- Chemotaxis / migration program (NR4A3/DOCK4/FMNL2 fits well) ----
+#   "CHEMOKINE", "CHEMOTAX", "LEUKOCYTE_MIGRATION", "EXTRAVAS",
+#   "CELL_ADHESION", "ADHESION", "INTEGRIN", "SELECTIN", "ICAM", "VCAM",
+#   "RHO_GTPASE", "RAC", "CDC42", "ACTIN", "CYTOSKELETON", "FOCAL_ADHESION",
+
+#   # ---- Neutrophil special: Reactome loves degranulation ----
+#   "DEGRANUL", "GRANULE",
+
+#   # ---- SPP1-TAM-ish tissue remodeling (usually not called SPP1 in Reactome) ----
+#   "EXTRACELLULAR_MATRIX", "ECM", "MATRIX_ORGANIZATION",
+#   "COLLAGEN", "MMP", "TGF_BETA", "WOUND_HEALING",
+
+#   # ---- Metabolic / hypoxia / stress metabolism ----
+#   "HYPOX", "HIF", "GLYCOLYSIS", "LACTATE", "PENTOSE",
+#   "OXIDATIVE_PHOSPHORYLATION", "RESPIRATORY", "ELECTRON_TRANSPORT",
+#   "MITOCHONDR", "ROS", "OXIDATIVE_STRESS",
+#   "AUTOPHAG", "MITOPHAG",
+#   "FATTY_ACID", "BETA_OXIDATION", "LIPID", "CHOLESTEROL", "PPAR", "MTOR", "AMPK",
+#   "FERROPTOS",
+#   "METALLOTHIONEIN", "METAL_ION", "ZINC",
+
+#   # ---- Heat shock / UPR ----
+#   "HEAT_SHOCK", "HSP", "CHAPERONE", "PROTEIN_FOLDING",
+#   "UNFOLDED", "ER_STRESS", "UPR", "EIF2", "ATF", "XBP1",
+
+#   # ---- Angiogenesis (sometimes shows in TAM states) ----
+#   "ANGIOGEN", "VEGF", "VASCULAR"
+# )
+
+# drop_kw <- c(
+#   # Neuronal / synapse / axon guidance
+#   "NMDAR", "SYNAP", "CHEMICAL_SYNAPSES", "NEURON", "NEURONAL_SYSTEM",
+#   "SEMAPHORIN", "PLEXIN", "AXON_GUIDANCE",
+
+#   # Cilia / flagella
+#   "CILI", "INTRAFLAGELLAR", "PERICILIARY", "FLAGELL",
+
+#   # Muscle / cardiac contraction
+#   "MUSCLE_CONTRACTION", "SMOOTH_MUSCLE", "STRIATED_MUSCLE", "CARDIAC",
+
+#   # Kidney-specific
+#   "NEPHRIN",
+
+#   # Ag Presentation
+#   "MHC_CLASS_I", "ZONA_PELLUCIDA", "PARACETAMOL"
+
+#   # Liver bile acid / salt metabolism
+#   "BILE", "BILE_ACID", "BILE_SALT",
+
+#   # Endocrine pancreas-ish
+#   "INSULIN", "INSULIN_SECRETION",
+
+#   # B cell receptor contamination
+#   "B_CELL_RECEPTOR", "BCR",
+
+#   # Platelet contamination
+#   "PLATELET", "HEMOSTAS", "COAGUL",
+
+#   # Viral lifecycle (pathogen-specific)
+#   "RESPIRATORY_SYNCYTIAL", "RSV_", "HIV_", "VPR", "REV", "SARS_COV",
+
+#   # Cell-cycle / mitosis
+#   "MITOTIC", "CENTROSOME", "CYTOKINESIS", "ANAPHASE", "PROMETAPHASE", "TELOPHASE", "CONDENSATION",
+
+#   # Housekeeping translation
+#   "MITOCHONDRIAL_TRANSLATION", "TRNA_AMINOACYLATION", "RIBOSOM", "TRANSLATION", "MITOCHONDRIAL_",
+
+#   # Thrombo
+#   "THROMB", "THROMBOX"
+# )
 
 c2_df2 <- c2_df %>%
   filter(str_detect(gs_name, regex(paste(keep_kw, collapse = "|"), ignore_case = TRUE)))
-
+# c2_df2 <- c2_df %>%
+#   filter(
+#     str_detect(gs_name, regex(paste(keep_kw, collapse="|"), ignore_case=TRUE)),
+#     !str_detect(gs_name, regex(paste(drop_kw, collapse="|"), ignore_case=TRUE))
+#   )
 reactome_sets <- split(c2_df2$gene_symbol, c2_df2$gs_name)
 
 # Filter sets to genes present + size
