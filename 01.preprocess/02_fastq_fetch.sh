@@ -2,11 +2,17 @@
 set -Euo pipefail
 IFS=$'\n\t'
 
+# --- APPLIED FIX: Bash 4.0+ version check for associative arrays ---
+if (( BASH_VERSINFO[0] < 4 )); then
+  echo "ERROR: This script requires Bash 4.0 or higher." >&2
+  exit 1
+fi
+
 # ========================
 # Config (edit as needed)
 # ========================
-BASE_DIR="/mnt/18T/chibao/gliomas/data/metadata/official/split7"   # Step-1 output root
-OUTPUT_DIR="/mnt/18T/chibao/gliomas/data/fastq/ena/split7"         # where FASTQs are saved
+BASE_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/0_fastq/0_metadata"   # Step-1 output root
+OUTPUT_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/0_fastq/1_fastq_fetch"         # where FASTQs are saved
 
 # Logs & reports (GLOBAL files accumulate across all splits)
 GLOBAL_SUMMARY="$OUTPUT_DIR/_download_summary.tsv"          # per-file event log (append-only)
@@ -21,15 +27,14 @@ ORPHANS_REPORT="$OUTPUT_DIR/_orphans.tsv"                   # files in OUTPUT wi
 USER_AGENT="ena-fastq-downloader/2.2"
 
 # aria2c tuning (used if available)
-CONNS=4               # was 6; fewer per-server conns is gentler
-SPLITS=4              # was 6; keep <= CONNS
+CONNS=16               # was 6; fewer per-server conns is gentler
+SPLITS=16              # was 6; keep <= CONNS
 SPLIT_MIN="8M"        # was 1M; larger pieces = fewer tiny segments
 ARIA_MAX_TRIES=8      # aria2's own tries (on top of our outer loop)
 ARIA_RETRY_WAIT=5     # seconds between aria2 retries
 ARIA_TIMEOUT=60       # socket timeout
 ARIA_CONN_TIMEOUT=15  # connect timeout
 ARIA_FILE_ALLOC="prealloc"  # better on HDDs; use "falloc" on XFS/ext4+SSD
-
 
 MAX_RETRIES=6
 BACKOFF_INITIAL=3
@@ -47,13 +52,14 @@ RESUME=false
 SPLIT_ID="${SPLIT_ID:-}"  # allow env var
 parse_args() {
   while (( "$#" )); do
+    # --- APPLIED FIX: Safe shifting to prevent out-of-bounds errors ---
     case "$1" in
       --split-id)
-        SPLIT_ID="${2:-}"; shift 2 ;;
+        SPLIT_ID="${2:-}"; shift; shift || true ;;
       --base-dir)
-        BASE_DIR="${2:-}"; shift 2 ;;
+        BASE_DIR="${2:-}"; shift; shift || true ;;
       --output-dir)
-        OUTPUT_DIR="${2:-}"; shift 2 ;;
+        OUTPUT_DIR="${2:-}"; shift; shift || true ;;
       --resume)
         RESUME=true; shift ;;
       *)
@@ -208,22 +214,36 @@ append_unique(){
   echo "$L" >> "$f"
 }
 
+# --- APPLIED FIX: Using printf -v to generate real tabs and standard if/else for RESUME ---
 append_expected_index_unique(){
   local split_id="$1" project_id="$2" study="$3" sample="$4" exp="$5" run="$6" file="$7" url="$8" md5_exp="$9" target="${10}"
-  local line="${split_id}\t${project_id}\t${study}\t${sample}\t${exp}\t${run}\t${file}\t${url}\t${md5_exp}\t${target}"
+  local line
+  printf -v line '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$split_id" "$project_id" "$study" "$sample" "$exp" "$run" "$file" "$url" "$md5_exp" "$target"
   append_unique "$EXPECTED_INDEX" "$line"
 }
 
 append_project_audit_unique(){
   local split_id="$1" ts="$2" project_id="$3" ready="$4" used_tsv="$5" status="$6" msg="$7"
-  local line="${split_id}\t${ts}\t${project_id}\t${ready}\t${used_tsv}\t${status}\t${msg}"
-  $RESUME && append_unique "$PROJECT_AUDIT" "$line" || echo -e "$line" >> "$PROJECT_AUDIT"
+  local line
+  printf -v line '%s\t%s\t%s\t%s\t%s\t%s\t%s' "$split_id" "$ts" "$project_id" "$ready" "$used_tsv" "$status" "$msg"
+  
+  if [ "$RESUME" = true ]; then
+    append_unique "$PROJECT_AUDIT" "$line"
+  else
+    echo "$line" >> "$PROJECT_AUDIT"
+  fi
 }
 
 append_metadata_inv_unique(){
   local split_id="$1" ts="$2" project_id="$3" tsv_path="$4" usage="$5" message="$6"
-  local line="${split_id}\t${ts}\t${project_id}\t${tsv_path}\t${usage}\t${message}"
-  $RESUME && append_unique "$METADATA_INV" "$line" || echo -e "$line" >> "$METADATA_INV"
+  local line
+  printf -v line '%s\t%s\t%s\t%s\t%s\t%s' "$split_id" "$ts" "$project_id" "$tsv_path" "$usage" "$message"
+  
+  if [ "$RESUME" = true ]; then
+    append_unique "$METADATA_INV" "$line"
+  else
+    echo "$line" >> "$METADATA_INV"
+  fi
 }
 
 # ========================
@@ -292,17 +312,20 @@ check_md5(){
 process_one_file(){
   local split_id="$1" project="$2" study="$3" sample="$4" exp="$5" run="$6" url_raw="$7" md5_exp="$8"
 
-  local url; url="$(normalize_url "$url_raw")"
-  local fname; fname="$(basename "$url")"
-  local rundir="$OUTPUT_DIR/$study/$sample/$exp/$run"
-  local dest="$rundir/$fname"
+  # --- APPLIED FIX: Separating local declaration from command substitution ---
+  local url fname rundir dest bytes actual final_md5 qmsg qpath
+  
+  url="$(normalize_url "$url_raw")"
+  fname="$(basename "$url")"
+  rundir="$OUTPUT_DIR/$study/$sample/$exp/$run"
+  dest="$rundir/$fname"
 
   mkdir -p "$rundir"
   init_run_log "$rundir"
 
   # Skip if already good on disk
   if [[ -f "$dest" ]] && check_md5 "$dest" "$md5_exp"; then
-    local bytes; bytes="$(bytes_of "$dest")"
+    bytes="$(bytes_of "$dest")"
     append_run_log "$rundir" "$split_id" "$(timestamp)" "skipped_existing" "$fname" "$md5_exp" "$md5_exp" "$bytes" "Already present and checksum OK"
     append_summary   "$split_id" "$(timestamp)" "$project" "$study" "$sample" "$exp" "$run" "$fname" "skipped_existing" "$md5_exp" "$md5_exp" "$bytes" "Already present"
     return 0
@@ -320,8 +343,8 @@ process_one_file(){
       append_run_log "$rundir" "$split_id" "$(timestamp)" "downloading" "$fname" "$md5_exp" "" "0" "Attempt ${attempt}/${MAX_RETRIES}: $url"
     fi
     if download_file "$url" "$rundir" "$fname" "$md5_exp"; then
-      local actual; actual="$(md5_of "$dest")"
-      local bytes;  bytes="$(bytes_of "$dest")"
+      actual="$(md5_of "$dest")"
+      bytes="$(bytes_of "$dest")"
       if [[ -n "$md5_exp" && -n "$actual" && "$actual" == "$md5_exp" ]]; then
         append_run_log "$rundir" "$split_id" "$(timestamp)" "checksum_ok" "$fname" "$md5_exp" "$actual" "$bytes" "Download and MD5 verified"
         append_summary   "$split_id" "$(timestamp)" "$project" "$study" "$sample" "$exp" "$run" "$fname" "success" "$md5_exp" "$actual" "$bytes" "OK"
@@ -338,12 +361,12 @@ process_one_file(){
   done
 
   # Final state after retries
-  local final_md5; final_md5="$(md5_of "$dest")"
-  local bytes; bytes="$(bytes_of "$dest")"
+  final_md5="$(md5_of "$dest")"
+  bytes="$(bytes_of "$dest")"
 
-  local qmsg=""
+  qmsg=""
   if [[ -f "$dest" ]]; then
-    local qpath; qpath="$(handle_mismatch_file "$dest")" || true
+    qpath="$(handle_mismatch_file "$dest")" || true
     if [[ -n "$qpath" ]]; then
       qmsg=" | quarantined: $qpath"
     elif [[ "$MISMATCH_ACTION" == "delete" ]]; then
@@ -396,8 +419,10 @@ process_project(){
 
   log "Project: $project_id | TSV: $used_tsv"
 
-  # Header -> index map
-  local header; header="$(head -n1 "$used_tsv")"
+  # --- APPLIED FIX: Stripping \r from the header line to prevent array poisoning ---
+  local header
+  header="$(head -n1 "$used_tsv" | tr -d '\r')"
+  
   IFS=$'\t' read -r -a cols <<< "$header"
   declare -A H=()
   for i in "${!cols[@]}"; do H["${cols[$i]}"]="$i"; done
@@ -419,6 +444,10 @@ process_project(){
     local run="${fields[${H[run_accession]}]:-NA}"
     local url_list="${fields[${H[fastq_ftp]}]:-}"
     local md5_list="${fields[${H[fastq_md5]}]:-}"
+    
+    # --- APPLIED FIX: Strip carriage returns from the last field read ---
+    md5_list="${md5_list%$'\r'}"
+    
     [[ -z "$url_list" ]] && continue
 
     IFS=';' read -r -a urls <<< "$url_list"
@@ -434,20 +463,22 @@ process_project(){
     append_run_log "$rundir" "$split_id" "$(timestamp)" "queued" "-" "-" "-" "0" "Row queued for processing"
 
     for idx in "${!urls[@]}"; do
-      local url_raw="${urls[$idx]}"
-      local md5_exp="${md5s[$idx]}"
-      local url="$(normalize_url "$url_raw")"
-      local fname="$(basename "$url")"
-      local target="$rundir/$fname"
+      # --- APPLIED FIX: Separating local declaration from command substitution ---
+      local url_raw md5_exp url fname target comp_key target_bytes
+      url_raw="${urls[$idx]}"
+      md5_exp="${md5s[$idx]}"
+      url="$(normalize_url "$url_raw")"
+      fname="$(basename "$url")"
+      target="$rundir/$fname"
 
       append_expected_index_unique "$split_id" "$project_id" "$study" "$sample" "$exp" "$run" "$fname" "$url" "$md5_exp" "$target"
 
       # If resume is ON and this key is already DONE, skip entirely
-      if $RESUME; then
-        local comp_key
+      if [ "$RESUME" = true ]; then
         comp_key="$(key_of "$project_id" "$study" "$sample" "$exp" "$run" "$fname")"
         if [[ -n "${DONE_KEYS[$comp_key]:-}" ]]; then
-          append_run_log "$rundir" "$split_id" "$(timestamp)" "resume_skip_done" "$fname" "$md5_exp" "$md5_exp" "$(bytes_of "$target")" "Already marked done in summary"
+          target_bytes="$(bytes_of "$target")"
+          append_run_log "$rundir" "$split_id" "$(timestamp)" "resume_skip_done" "$fname" "$md5_exp" "$md5_exp" "$target_bytes" "Already marked done in summary"
           continue
         fi
       fi
@@ -533,8 +564,11 @@ main() {
   SPLIT_ID="$(deduce_split_id)"
   init_files
 
-  $RESUME && build_done_set
-  $RESUME && log "Resume mode: found ${#DONE_KEYS[@]} completed file keys; will skip them."
+  # --- APPLIED FIX: Adjusted RESUME checks ---
+  if [ "$RESUME" = true ]; then
+    build_done_set
+    log "Resume mode: found ${#DONE_KEYS[@]} completed file keys; will skip them."
+  fi
 
   log "Starting ENA download job. split_id=$SPLIT_ID  BASE_DIR=$BASE_DIR  OUTPUT_DIR=$OUTPUT_DIR  resume=$RESUME"
 

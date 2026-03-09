@@ -3,9 +3,9 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 # ======================= CONFIG ==========================
-BASE="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger"
-OUT="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam"
-MANIFEST="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/pre_QC/scrna_official_manifest.tsv"     # <-- your NEW manifest with sample_uid column
+BASE="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/pbmc_healthy" # cohort_official or pbmc_post_treat or pbmc_healthy
+OUT="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam/pbmc_healthy"
+MANIFEST="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/pre_QC/pbmc_healthy/scrna_official_manifest.tsv"     # <-- your NEW manifest with sample_uid column
 # =========================================================
 
 mkdir -p "$OUT"
@@ -131,7 +131,7 @@ add_qc_metrics <- function(sobj){
   }
   sobj
 }
-apply_adaptive_scrna_filters_glioma <- function(sobj, mad_k=4, min_cells_after_filter=20) {
+apply_adaptive_scrna_filters <- function(sobj, mad_k=4, min_cells_after_filter=20) {
   meta <- sobj@meta.data
   
   # 1. Mitochondrial Filtering: Adaptive MAD
@@ -232,6 +232,7 @@ if (!file.exists(summary_tsv)) {
     data.frame(project_id=character(), sample_uid=character(), orig_sample_id=character(),
                genome=character(), chemistry=character(),
                cells_raw=integer(), cells_postQC=integer(),
+               retention_pct=double(), # <-- ADDED THIS TO MATCH DATA
                median_genes=double(), median_counts=double(), median_pct_mt=double(),
                path_rds=character(), stringsAsFactors=FALSE),
     file=summary_tsv, sep="\t", quote=FALSE, row.names=FALSE

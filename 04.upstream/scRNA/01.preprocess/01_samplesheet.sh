@@ -3,8 +3,8 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 # ============ CONFIG (edit as needed) ==========================
-BASE_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger"
-OUT_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/pre_QC"
+BASE_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/pbmc_healthy" # cohort_official or pbmc_post_treat or pbmc_healthy
+OUT_DIR="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/pre_QC/pbmc_healthy" # cohort_official or pbmc_post_treat or pbmc_healthy
 OUT_FILE="$OUT_DIR/scrna_official_manifest.tsv"
 
 DEF_GENOME="GRCh38"
