@@ -11,13 +11,13 @@ suppressPackageStartupMessages({
 # USER SETTINGS
 # ==============================================================================
 sample_id <- "Glioma_Myeloid"
-base_dir <- "/mnt/18T/chibao/gliomas/data_official/02_myeloid"
-
+base_dir <- "/mnt/18T/chibao/gliomas/data_official/02_myeloid/new/rpca/obj"
+out <- '/mnt/18T/chibao/gliomas/data_official/stuff'
 # Input: The integrated myeloid Seurat object
-in_path <- file.path(base_dir, "01_myeloid_integrated_obj.rds")
+in_path <- file.path(base_dir, "01_myeloid_integrated_rpca_obj.rds")
 
 # Output: Where to save the annotated results
-out_dir <- file.path(base_dir, "02_Annotation_outputs", sample_id)
+out_dir <- file.path(out, "02_Annotation_outputs", sample_id)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Processing Power
@@ -124,15 +124,15 @@ message("Generating UMAPs...")
 
 # Note: Since this is an integrated object, ensure your reduction name is correct 
 # (e.g., it might be "umap.harmony" or "integrated_umap" depending on your pipeline).
-umap_reduction <- "umap" 
+umap_reduction <- "umap.rpca" 
 
 # 1. UMAP by Broad Cell Type
-p1 <- DimPlot(seu, reduction = 'umap.harmony', group.by = "SingleR_Main", label = TRUE, repel = TRUE) + 
+p1 <- DimPlot(seu, reduction = 'umap.rpca', group.by = "SingleR_Main", label = TRUE, repel = TRUE) + 
   ggtitle(paste0(sample_id, " Broad Cell Types")) + NoLegend()
 ggsave(file.path(out_dir, paste0(sample_id, "_UMAP_SingleR_Main.png")), p1, width = 7, height = 6)
 
 # 2. UMAP by Fine Cell Type
-p2 <- DimPlot(seu, reduction = 'umap.harmony', group.by = "SingleR_Fine", label = TRUE, repel = TRUE, label.size = 3) + 
+p2 <- DimPlot(seu, reduction = 'umap.rpca', group.by = "SingleR_Fine", label = TRUE, repel = TRUE, label.size = 3) + 
   ggtitle(paste0(sample_id, " Detailed Myeloid Subtypes")) + NoLegend()
 ggsave(file.path(out_dir, paste0(sample_id, "_UMAP_SingleR_Fine.png")), p2, width = 8, height = 7)
 

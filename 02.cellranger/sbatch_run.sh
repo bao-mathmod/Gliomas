@@ -11,14 +11,14 @@
 
 nextflow run main.nf \
    -profile slurm,singularity \
-   --input /mnt/18T/chibao/gliomas/data/fastq/official/all_projects.csv \
-   --cellranger_index /mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2024-A \
+   --input /mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/new_cohort/new_cohort_samplesheet.csv \
+   --cellranger_index /mnt/18T/chibao/gliomas/ref_genome/refdata-gex-GRCh38-2024-A \
    --aligner cellranger \
-   --outdir /mnt/18T/chibao/gliomas/data/output_cell/nextflow \
+   --outdir /mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/new_cohort/nextflow \
    --skip_fastqc \
    --skip_cellbender \
-   -resume \
-   2>&1 | tee /mnt/18T/chibao/gliomas/data/output_cell/nextflow/nextflow_run.log
+   #-resume \
+   2>&1 | tee /mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/new_cohort/nextflow/nextflow_run.log
 
 
 nextflow run main.nf \
@@ -33,33 +33,33 @@ nextflow run main.nf \
   -resume 30d49178-a7c6-4e79-84bc-c9397ce34505 \
   2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA869964/nextflow_run.log
 
-nextflow run main.nf \
-  -profile slurm,singularity \
-  --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045.csv \
-  --cellranger_index /mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2020-A \
-  --aligner cellranger \
-  --protocol ARC-v1 \
-  --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
-  --skip_fastqc \
-  -resume \
-  2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_run.log
+# nextflow run main.nf \
+#   -profile slurm,singularity \
+#   --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045.csv \
+#   --cellranger_index /mnt/12T/chibao/env_tool/cellranger/ref_genome/refdata-gex-GRCh38-2020-A \
+#   --aligner cellranger \
+#   --protocol ARC-v1 \
+#   --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
+#   --skip_fastqc \
+#   -resume \
+#   2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_run.log
 
-nextflow run main.nf \
-  -profile slurm,singularity \
-  --aligner cellrangerarc \
-  --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045_arc.csv \
-  --cellrangerarc_reference /mnt/12T/chibao/env_tool/cellranger_arc/refgenome_arc/refdata-cellranger-arc-GRCh38-2024-A \
-  --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
-  -resume \
-  2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_arc_run.log
+# nextflow run main.nf \
+#   -profile slurm,singularity \
+#   --aligner cellrangerarc \
+#   --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045_arc.csv \
+#   --cellrangerarc_reference /mnt/12T/chibao/env_tool/cellranger_arc/refgenome_arc/refdata-cellranger-arc-GRCh38-2024-A \
+#   --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
+#   -resume \
+#   2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_arc_run.log
 
-# Replace your run command with this (note the param name change):
-nextflow run main.nf \
-  -profile slurm,singularity \
-  --aligner cellrangerarc \
-  --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045_arc.csv \
-  --cellranger_index /mnt/12T/chibao/env_tool/cellranger_arc/refgenome_arc/refdata-cellranger-arc-GRCh38-2024-A \
-  --save_align_intermeds true \
-  --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
-  -resume \
-  2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_arc_run.log
+# # Replace your run command with this (note the param name change):
+# nextflow run main.nf \
+#   -profile slurm,singularity \
+#   --aligner cellrangerarc \
+#   --input /mnt/10T/chibao/gliomas/data/PRJNA961045/PRJNA961045_arc.csv \
+#   --cellranger_index /mnt/12T/chibao/env_tool/cellranger_arc/refgenome_arc/refdata-cellranger-arc-GRCh38-2024-A \
+#   --save_align_intermeds true \
+#   --outdir /mnt/10T/chibao/gliomas/data/PRJNA961045 \
+#   -resume \
+#   2>&1 | tee /mnt/10T/chibao/gliomas/data/PRJNA961045/nextflow_arc_run.log
