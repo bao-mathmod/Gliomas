@@ -13,14 +13,14 @@ suppressPackageStartupMessages({
 })
 
 # == Configuration ==========================================================
-plan("multicore", workers = 20)
-options(future.globals.maxSize = 450 * 1024^3) # 450 GB
+plan("multicore", workers = 1)
+options(future.globals.maxSize = 500 * 1024^3) # 450 GB
 options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam/cohort_official/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/03_integrated/01_harmony/orig.ident"
+in_dir  <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam/cohort_official_new/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/03_integrated/01_harmony/orig.ident/obj"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -66,7 +66,7 @@ merged_obj <- SCTransform(merged_obj,
 
 message("Step 2.1: Save file for Backup...")
 # Save intermediate object for backup
-saveRDS(merged_obj, file.path(out_dir, "merge_backup_SCT.rds"))
+saveRDS(merged_obj, file.path(out_dir, "merge_cohort_new_backup_SCT.rds"))
 
 # For safety, reload the backup
 # merged_obj <- readRDS('/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/03_integrated/merge_backup_SCT.rds')
@@ -111,25 +111,14 @@ harmony_obj <- FindClusters(
   # algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
   verbose = FALSE
 )
-saveRDS(harmony_obj, file.path(out_dir, "harmony_integrated_orig.ident.rds"))
-
+saveRDS(harmony_obj, file.path(out_dir, "harmony_integrated_cohort_new_orig_ident.rds"))
+# Viz for Hamrony 
+p <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.04', label = TRUE)
+ggsave(file.path(out_dir, 'res.png'), plot = p)
 
 
 
 # == 4. Downstream Analysis and Clustering ===================================
-message("Step 4: UMAP, Neighbors, and Clustering on integrated data...")
-# Harmony
-# harmony_obj <- RunPCA(harmony_obj, assay = "SCT", npcs = 100, verbose = FALSE)
-harmony_obj <- RunUMAP(harmony_obj, reduction = "harmony", dims = 1:40, reduction.name = "umap.harmony")
-harmony_obj <- FindNeighbors(harmony_obj, reduction = "harmony", dims = 1:40)
-harmony_obj <- FindClusters(
-  harmony_obj,
-  #graph.name = "SCT_snn",
-  resolution = c(0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.4, 0.5, 0.6,  0.7, 0.8, 1.0, 1.2),
-  # algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
-  verbose = FALSE
-)
-
 # RPCA
 message("Step 2.2: Integrating layers using RPCA...")
 rpca_obj <- IntegrateLayers(

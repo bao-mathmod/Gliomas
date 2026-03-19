@@ -5,8 +5,11 @@ library(ggplot2)
 library(future)
 library(glmGamPoi)
 
-# Ensure object convert to V5 format
-options(Seurat.object.assay.version = 'v5')
+# == Configuration ==========================================================
+plan("multicore", workers = 20)
+options(future.globals.maxSize = 450 * 1024^3) # 450 GB
+options(Seurat.object.assay.version = "v5")
+set.seed(1234) # for reproducibility
 
 # Load the integrated cleaned object
 # obj <- readRDS('/mnt/18T/chibao/gliomas/data/upstream/scRNA/official/integrated_v5_optimized/adult/harmony_cleaned_annotated.rds')

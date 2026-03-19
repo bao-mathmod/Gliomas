@@ -17,7 +17,7 @@ nextflow run main.nf \
    --outdir /mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/new_cohort/nextflow \
    --skip_fastqc \
    --skip_cellbender \
-   #-resume \
+   -resume \
    2>&1 | tee /mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/new_cohort/nextflow/nextflow_run.log
 
 
