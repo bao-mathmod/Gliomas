@@ -3,9 +3,9 @@ set -Euo pipefail
 IFS=$'\n\t'
 
 # ======================= CONFIG ==========================
-BASE="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/1_raw_cell_ranger/cohort_official" # cohort_official or pbmc_post_treat or pbmc_healthy
-OUT="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam/cohort_official_new"
-MANIFEST="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/pre_QC/cohort_official_new/scrna_official_manifest.tsv"     # <-- your NEW manifest with sample_uid column
+BASE="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/1_raw_cell_ranger/cohort_official_GBM" # cohort_official or pbmc_post_treat or pbmc_healthy
+OUT="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/2_QC_output/post_QC_newparam/official/cohort_official_GBM"
+MANIFEST="/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/2_QC_output/pre_QC/official/cohort_official_GBM/scrna_official_manifest.tsv"     # <-- your NEW manifest with sample_uid column
 # =========================================================
 
 mkdir -p "$OUT"

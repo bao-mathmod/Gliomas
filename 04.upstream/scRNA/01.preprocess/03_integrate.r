@@ -19,8 +19,8 @@ options(Seurat.object.assay.version = "v5")
 set.seed(1234) # for reproducibility
 
 # == Paths ==================================================================
-in_dir  <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/2_QC_output/post_QC_newparam/cohort_official_new/rds"
-out_dir <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult/03_integrated/01_harmony/orig.ident/obj"
+in_dir  <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/2_QC_output/post_QC_newparam/official/cohort_official_GBM/rds"
+out_dir <- "/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/03_integrated/official/harmony/obj"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # == 1. Load, Merge, and Pre-process Data ====================================
@@ -111,10 +111,33 @@ harmony_obj <- FindClusters(
   # algorithm = 1,     # Louvain (stable), switch to 2 (SLM) if desired
   verbose = FALSE
 )
-saveRDS(harmony_obj, file.path(out_dir, "harmony_integrated_cohort_new_orig_ident.rds"))
 # Viz for Hamrony 
-p <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.04', label = TRUE)
-ggsave(file.path(out_dir, 'res.png'), plot = p)
+p1 <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.04', label = TRUE)
+p2 <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.06', label = TRUE)
+p3 <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'SCT_snn_res.0.08', label = TRUE)
+
+p <- p1 + p2 + p3
+
+
+ggsave(file.path(out_dir, 'res.png'), plot = p, width = 16, height = 8)
+ggsave(file.path(out_dir, 'dot.png'), plot = p, width = 12, height = 10)
+
+# Prep markers
+harmony_obj <- PrepSCTFindMarkers(harmony_obj, assay = "SCT", verbose = TRUE)
+Idents(harmony_obj) <- 'SCT_snn_res.0.08'
+harmony_markers_0.08 <- FindAllMarkers(harmony_obj,
+                              assay = "SCT",
+                              only.pos = TRUE,
+                              min.pct = 0.25,
+                              logfc.threshold = 0.25,
+                              test.use = "wilcox")
+harmony_markers_0.08 <- harmony_markers_0.08 |> arrange(desc(avg_log2FC))
+write.csv(harmony_markers_0.08, file = '/mnt/18T/chibao/gliomas/data_official/00_raw_data_adult_GBM/03_integrated/official/harmony/markers/harmony_markers_GBM_0.08.csv')
+p <- DimPlot(harmony_obj, reduction = 'umap.harmony', group.by = 'general_cell_type', label = TRUE)
+ggsave(file.path(out_dir, 'annote.png'), plot = p)
+
+saveRDS(harmony_obj, file.path(out_dir, "harmony_integrated_cohort_GBM_orig_ident.rds"))
+
 
 
 
